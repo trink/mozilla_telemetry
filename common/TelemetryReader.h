@@ -9,19 +9,13 @@
 #ifndef mozilla_telemetry_Telemetry_Reader_h
 #define mozilla_telemetry_Telemetry_Reader_h
 
+#include <boost/utility.hpp>
 #include <cstdint>
 #include <istream>
 #include <rapidjson/document.h>
 
 namespace mozilla {
 namespace telemetry {
-
-template<class T>
-std::istream& read_value(std::istream& aInput, T& val)
-{
-  aInput.read((char*)&val, sizeof(val));
-  return aInput;
-}
 
 struct TelemetryRecord
 {
@@ -30,19 +24,30 @@ struct TelemetryRecord
   rapidjson::Document mDocument;
 };
 
-class TelemetryReader {
+class TelemetryReader : boost::noncopyable
+{
 public:
   TelemetryReader(std::istream& aInput);
   ~TelemetryReader();
-
-  bool Read(TelemetryRecord &aRec);
+  
+  /**
+   * Reads the next available telemetry record from the stream.
+   * 
+   * @param aRec Record to populate.
+   * 
+   * @return bool True if a record was found, false if not.
+   */
+  bool Read(TelemetryRecord& aRec);
 
 private:
+  bool FindRecord(TelemetryRecord& aRec);
+  bool ReadHeader(TelemetryRecord& aRec);
+  bool ProcessRecord(TelemetryRecord& aRec);
   int Inflate();
 
   std::istream& mInput;
 
-  uint32_t mPathLength;
+  uint16_t mPathLength;
   uint32_t mDataLength;
   uint32_t mInflateLength;
 
@@ -50,9 +55,16 @@ private:
   size_t mDataSize;
   size_t mInflateSize;
 
+  size_t mBufferSize;
+  size_t mScanPos;
+  size_t mEndPos;
+
   char*   mPath;
   char*   mData;
   char*   mInflate;
+  char*   mBuffer;
+
+  bool  mReadHeader;
 };
 
 }

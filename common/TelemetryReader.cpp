@@ -9,10 +9,12 @@
 #include "TelemetryConstants.h"
 #include "TelemetryReader.h"
 
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <zlib.h>
 
+#include <iostream>
 using namespace std;
 
 namespace mozilla {
@@ -30,75 +32,143 @@ TelemetryReader::TelemetryReader(std::istream& aInput) :
   mDataSize(kMaxTelemetryData),
   mInflateSize(kMaxTelemetryRecord),
 
+  mBufferSize(kMaxTelemetryRecord),
+  mScanPos(0),
+  mEndPos(0),
+
   mPath(nullptr),
   mData(nullptr),
-  mInflate(nullptr)
+  mInflate(nullptr),
+  
+  mBuffer(nullptr),
+
+  mReadHeader(false)
 {
-  mPath = new char[mPathSize + 1];
-  mData = new char[mDataSize + 1];
+  mBuffer = new char[kMaxTelemetryRecord + 1];
   mInflate = new char[mInflateSize];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 TelemetryReader::~TelemetryReader()
 {
-  delete[] mPath;
-  delete[] mData;
+  delete[] mBuffer;
   delete[] mInflate;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool TelemetryReader::Read(TelemetryRecord& aRec)
 {
-  mPathLength = 0;
-  mDataLength = 0;
-  mInflateLength = 0;
-
-  if (mInput) {
-    read_value(mInput, mPathLength); // todo support conversion to big endian?
-    read_value(mInput, mDataLength);
-    read_value(mInput, aRec.mTimestamp);
-    if (mPathLength > mPathSize) {
-      // todo seek for next valid record, but for now stop processing
-      return false;
-    }
-    mInput.read(mPath, mPathLength);
-    aRec.mPath = string(mPath, mPathLength);
-
-    if (mDataLength > mDataSize) {
-      // todo seek for next valid record, but for now stop processing
-      return false;
-    }
-    mInput.read(mData, mDataLength);
-
-    if (mDataLength > 2 && mData[0] == 0x1f
-        && static_cast<unsigned char>(mData[1]) == 0x8b) {
-      int ret = Inflate(); // this increases processing time by 70x
-      if (ret != Z_OK) {
-        // todo log error - ungzip failed, the document will be empty
-      } else {
-        if (mInflateLength < mInflateSize) {
-          mInflate[mInflateLength] = 0;
-        } else {
-          size_t required = mInflateLength + 1; // make room for the null
-          char* tmp = new char[required];
-          if (tmp) {
-            memcpy(tmp, mInflate, mInflateLength);
-            delete[] mInflate;
-            mInflate = tmp;
-            mInflateSize = required;
-            mInflate[mInflateLength] = 0;
-          }
-        }
-        aRec.mDocument.Parse<0>(mInflate); // cannot use the destructive parse
-        // unless the inflate buffer is stored in the TelemetryRecord
+  size_t n = 0;
+  while (mInput) {
+    if (FindRecord(aRec)) {
+      mReadHeader = false;
+      if (ProcessRecord(aRec)) {
+        aRec.mPath = string(mPath, mPathLength);
+        return true;
       }
-    } else {
-      mData[mDataLength] = 0;
-      aRec.mDocument.Parse<0>(mData);
+      continue;  // bad record try again
+    } else if (mScanPos != mEndPos) { // realign buffer
+      memmove(mBuffer, mBuffer + mScanPos, mEndPos - mScanPos);
+      mEndPos = mEndPos - mScanPos;
+      mScanPos = 0;
     }
+    mInput.read(mBuffer + mEndPos, mBufferSize - mEndPos);
+    n = mInput.gcount();
+    mEndPos += n;
+    if (mInput.eof()) mInput.clear();
+    if (n == 0) break;
   }
-  return mInput.good();
+  return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Private Members
+////////////////////////////////////////////////////////////////////////////////
+bool TelemetryReader::FindRecord(TelemetryRecord& aRec)
+{
+  char* pos = find(mBuffer + mScanPos, mBuffer + mEndPos, kRecordSeparator);
+  if (pos != mBuffer + mEndPos) {
+    mScanPos = pos - mBuffer;
+    size_t headerEnd = mScanPos + kTelemetryHeaderSize;
+    if (headerEnd > mEndPos) return false; // need more data
+
+    mReadHeader = ReadHeader(aRec);
+    if (mReadHeader) {
+      size_t recordEnd = mScanPos + kTelemetryHeaderSize + mPathLength + mDataLength;
+      if (recordEnd > mEndPos) return false; // need more data
+      mPath = mBuffer + mScanPos + kTelemetryHeaderSize;
+      mData = mBuffer + mScanPos + kTelemetryHeaderSize + mPathLength;
+      mScanPos = recordEnd;
+      return true;
+    } else {
+      ++mScanPos;
+      return FindRecord(aRec);
+    }
+  } else {
+    mScanPos = mEndPos = 0;
+  }
+  return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool TelemetryReader::ReadHeader(TelemetryRecord& aRec)
+{
+  if (mReadHeader) return true;
+
+  // todo support big endian?
+  size_t pos = mScanPos + 1;
+  memcpy(&mPathLength, mBuffer + pos, sizeof(mPathLength));
+  if (mPathLength > kMaxTelemetryPath) return false;
+  pos += sizeof(mPathLength);
+
+  memcpy(&mDataLength, mBuffer + pos, sizeof(mDataLength));
+  if (mDataLength > kMaxTelemetryData) return false;
+  pos += sizeof(mDataLength);
+
+  memcpy(&aRec.mTimestamp, mBuffer + pos, sizeof(aRec.mTimestamp));
+
+  return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool TelemetryReader::ProcessRecord(TelemetryRecord& aRec)
+{
+  if (mDataLength > 2 && mData[0] == 0x1f
+      && static_cast<unsigned char>(mData[1]) == 0x8b) {
+    int ret = Inflate();
+    if (ret != Z_OK) {
+      // todo log error - ungzip failed
+      return false;
+    } else {
+      if (mInflateLength < mInflateSize) {
+        mInflate[mInflateLength] = 0;
+      } else {
+        size_t required = mInflateLength + 1; // make room for the null
+        char* tmp = new char[required];
+        if (tmp) {
+          memcpy(tmp, mInflate, mInflateLength);
+          delete[] mInflate;
+          mInflate = tmp;
+          mInflateSize = required;
+          mInflate[mInflateLength] = 0;
+        }
+      }
+      aRec.mDocument.Parse<0>(mInflate); // cannot use the destructive parse
+                                         // unless the inflate buffer is stored
+                                         // in the TelemetryRecord
+    }
+  } else {
+    char ch = mData[mDataLength]; // grab the byte following the data, the
+                                  // underlying mBuffer owns it
+    mData[mDataLength] = 0; // temporarily write a null into the buffer
+    aRec.mDocument.Parse<0>(mData);
+    mData[mDataLength] = ch; // restore the buffer
+  }
+  if (aRec.mDocument.HasParseError()) {
+    // todo log error - aRec.mDocument.GetParseError()
+    return false;
+  }
+  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

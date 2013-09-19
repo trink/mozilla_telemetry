@@ -18,6 +18,7 @@
 #include <iostream>
 #include <rapidjson/document.h>
 #include <sstream>
+#include <thread>
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -25,11 +26,16 @@ namespace mt = mozilla::telemetry;
 
 struct ConvertConfig
 {
+  ConvertConfig() :
+    mInputPollMs(0) { }
+
   fs::path mInputFile; // empty for cin
   fs::path mTelemetrySchema;
   fs::path mCachePath;
   fs::path mStoragePath;
   fs::path mLogPath;
+
+  int mInputPollMs; // 0 for no polling, exits when there are no more records
 };
 
 void read_config(const char* aFile, ConvertConfig& aConfig)
@@ -63,6 +69,11 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
     throw runtime_error("input_file not specified");
   }
   aConfig.mInputFile = v.GetString();
+
+  v = doc["input_poll_ms"];
+  if (v.IsInt()) {
+    aConfig.mInputPollMs = v.GetInt();
+  }
 
   v = doc["telemetry_schema"];
   if (!v.IsString()) {
@@ -112,12 +123,19 @@ int main(int argc, char** argv)
     }
     mt::TelemetryReader reader(*is);
     mt::TelemetryRecord tr;
-    while (reader.Read(tr)) {
-      if (tr.mDocument.HasParseError()) continue;
+    while (true) {
+      if (!reader.Read(tr)) {
+        if (config.mInputPollMs) {
+          this_thread::sleep_for(chrono::milliseconds(config.mInputPollMs));
+          continue;
+        } else {
+          break;
+        }
+      }
       ConvertHistogramData(cache, tr.mDocument);
       boost::filesystem::path p = config.mStoragePath /
         schema.GetDimensionPath(tr.mDocument["info"]) / "todo_001.log";
-      cerr << p << endl;
+      cout << p << endl;
       // todo create path
       // create/append/roll log file
       // write uuid\tjson\n

@@ -24,16 +24,69 @@ using namespace std;
 using namespace mozilla::telemetry;
 
 
+static const string rec("\x1e\x04\x00\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00" "abcd{\"a\":8}", 26);
 BOOST_AUTO_TEST_CASE(test_read)
 {
-  string data(string("\x04\x00\x00\x00\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00" "abcd{\"a\":8}", 27));
+  string data(rec + rec);
   istringstream iss(data);
   TelemetryReader reader(iss);
   TelemetryRecord tr;
-  BOOST_REQUIRE_EQUAL(true, reader.Read(tr));
+  for (int i = 0; i < 2; ++i) {
+    BOOST_REQUIRE_EQUAL(true, reader.Read(tr)); 
+    BOOST_REQUIRE_EQUAL(1, tr.mTimestamp);
+    BOOST_REQUIRE_EQUAL("abcd", tr.mPath);
+    BOOST_REQUIRE_EQUAL(8, tr.mDocument["a"].GetInt());
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_partial)
+{
+  string data(rec + "\x1e");
+  istringstream iss(data);
+  TelemetryReader reader(iss);
+  TelemetryRecord tr;
+  BOOST_REQUIRE_EQUAL(true, reader.Read(tr)); 
   BOOST_REQUIRE_EQUAL(1, tr.mTimestamp);
   BOOST_REQUIRE_EQUAL("abcd", tr.mPath);
   BOOST_REQUIRE_EQUAL(8, tr.mDocument["a"].GetInt());
+
+  BOOST_REQUIRE_EQUAL(false, reader.Read(tr));
+
+  iss.str(rec.substr(1));
+  BOOST_REQUIRE_EQUAL(true, reader.Read(tr)); 
+  BOOST_REQUIRE_EQUAL(1, tr.mTimestamp);
+  BOOST_REQUIRE_EQUAL("abcd", tr.mPath);
+  BOOST_REQUIRE_EQUAL(8, tr.mDocument["a"].GetInt());
+}
+
+BOOST_AUTO_TEST_CASE(test_exceed_pathlength)
+{
+  string data(rec + string("\x1e\xff\xff\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00", 15) + rec);
+  istringstream iss(data);
+  TelemetryReader reader(iss);
+  TelemetryRecord tr;
+  for (int i = 0; i < 2; ++i) {
+    BOOST_REQUIRE_EQUAL(true, reader.Read(tr)); 
+    BOOST_REQUIRE_EQUAL(1, tr.mTimestamp);
+    BOOST_REQUIRE_EQUAL("abcd", tr.mPath);
+    BOOST_REQUIRE_EQUAL(8, tr.mDocument["a"].GetInt());
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_short_pathlength)
+{
+  string bad_rec("\x1e\x02\x00\x07\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00" "abcd{\"a\":8}", 26);
+  string data(bad_rec + rec);
+  istringstream iss(data);
+  TelemetryReader reader(iss);
+  TelemetryRecord tr;
+
+  BOOST_REQUIRE_EQUAL(true, reader.Read(tr)); 
+  BOOST_REQUIRE_EQUAL(1, tr.mTimestamp);
+  BOOST_REQUIRE_EQUAL("abcd", tr.mPath);
+  BOOST_REQUIRE_EQUAL(8, tr.mDocument["a"].GetInt());
+
+  BOOST_REQUIRE_EQUAL(false, reader.Read(tr));
 }
 
 BOOST_AUTO_TEST_CASE(test_convert)
