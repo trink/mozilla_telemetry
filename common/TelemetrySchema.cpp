@@ -104,7 +104,7 @@ TelemetrySchema::TelemetrySchema(const boost::filesystem::path& fileName)
 
 ////////////////////////////////////////////////////////////////////////////////
 boost::filesystem::path
-TelemetrySchema::GetDimensionPath(const rapidjson::Value& aInfo)
+TelemetrySchema::GetDimensionPath(const rapidjson::Value& aInfo) const
 {
   static const string kOther("other");
   boost::filesystem::path p;

@@ -42,7 +42,7 @@ public:
    * 
    * @return boost::filesystem::path 
    */
-  boost::filesystem::path GetDimensionPath(const rapidjson::Value& aInfo);
+  boost::filesystem::path GetDimensionPath(const rapidjson::Value& aInfo) const;
 
 private:
 
@@ -72,7 +72,7 @@ private:
    */
   void LoadDimensions(const rapidjson::Document& aDoc);
 
-  std::string SafePath(const std::string& s);
+  static std::string SafePath(const std::string& s);
 
   int mVersion;
   std::vector<std::shared_ptr<TelemetryDimension>> mDimensions;

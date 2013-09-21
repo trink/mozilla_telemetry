@@ -1,6 +1,5 @@
 {
-    "input_file": "../common/test/data/telemetry1.log",
-    "input_poll_ms": 0,
+    "input_directory": "./input",
     "telemetry_schema": "../common/test/data/telemetry_schema.json",
     "cache_path": "../common/test/data/cache",
     "storage_path": "./storage",

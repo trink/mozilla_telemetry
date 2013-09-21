@@ -18,6 +18,7 @@
 #include <iostream>
 #include <rapidjson/document.h>
 #include <sstream>
+#include <sys/inotify.h>
 #include <thread>
 
 using namespace std;
@@ -26,16 +27,11 @@ namespace mt = mozilla::telemetry;
 
 struct ConvertConfig
 {
-  ConvertConfig() :
-    mInputPollMs(0) { }
-
-  fs::path mInputFile; // empty for cin
+  fs::path mInputDirectory;
   fs::path mTelemetrySchema;
   fs::path mCachePath;
   fs::path mStoragePath;
   fs::path mLogPath;
-
-  int mInputPollMs; // 0 for no polling, exits when there are no more records
 };
 
 void read_config(const char* aFile, ConvertConfig& aConfig)
@@ -64,16 +60,11 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
-  rapidjson::Value& v = doc["input_file"];
+  rapidjson::Value& v = doc["input_directory"];
   if (!v.IsString()) {
-    throw runtime_error("input_file not specified");
+    throw runtime_error("input_directory not specified");
   }
-  aConfig.mInputFile = v.GetString();
-
-  v = doc["input_poll_ms"];
-  if (v.IsInt()) {
-    aConfig.mInputPollMs = v.GetInt();
-  }
+  aConfig.mInputDirectory = v.GetString();
 
   v = doc["telemetry_schema"];
   if (!v.IsString()) {
@@ -101,6 +92,38 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+void ProcessFile(const ConvertConfig& config, const char* aName,
+                 const mt::TelemetrySchema& aSchema, mt::HistogramCache& aCache)
+{
+  try {
+    fs::path fn = config.mInputDirectory / aName;
+    fs::path tfn = fs::temp_directory_path() / aName;
+    rename(fn, tfn);
+    cout << "processing file:" << aName << endl;
+    ifstream file(tfn.c_str());
+    mt::TelemetryReader reader(file);
+    mt::TelemetryRecord tr;
+    while (reader.Read(tr)) {
+      ConvertHistogramData(aCache, tr.mDocument);
+      boost::filesystem::path p = config.mStoragePath /
+        aSchema.GetDimensionPath(tr.mDocument["info"]) / "todo_001.log";
+      cout << p << endl;
+      // todo create path
+      // create/append/roll log file
+      // write uuid\tjson\n
+    }
+    remove(tfn);
+  }
+  catch (const exception& e) {
+    cerr << "ProcessFile std exception: " << e.what();
+  }
+  catch (...) {
+    cerr << "Process unknown exception";
+  }
+}
+
+const size_t kMaxEventSize = sizeof(struct inotify_event) + FILENAME_MAX + 1;
+///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
   if (argc != 2) {
@@ -114,32 +137,30 @@ int main(int argc, char** argv)
     mt::HistogramCache cache(config.mCachePath);
     mt::TelemetrySchema schema(config.mTelemetrySchema);
 
-    ifstream file;
-    istream* is = &file;
-    if (config.mInputFile.empty()) {
-      is = &cin;
-    } else {
-      file.open(config.mInputFile.c_str(), ios_base::binary);
+    int notify = inotify_init();
+    if (notify < 0) {
+      cerr << "inotify_init failed\n";
+      return EXIT_FAILURE;
     }
-    mt::TelemetryReader reader(*is);
-    mt::TelemetryRecord tr;
+    int watch = inotify_add_watch(notify, config.mInputDirectory.c_str(),
+                                  IN_CLOSE_WRITE);
+    int bytesRead;
+    char buf[kMaxEventSize];
     while (true) {
-      if (!reader.Read(tr)) {
-        if (config.mInputPollMs) {
-          this_thread::sleep_for(chrono::milliseconds(config.mInputPollMs));
-          continue;
-        } else {
-          break;
+      bytesRead = read(notify, buf, kMaxEventSize);
+      if (bytesRead < 0) break;
+
+      int i = 0;
+      while (i < bytesRead) {
+        inotify_event* event = reinterpret_cast<inotify_event*>(&buf[i]);
+        if (event->len) { // event->mask & IN_CLOSE_WRITE
+          ProcessFile(config, event->name, schema, cache);
         }
+        i += sizeof(struct inotify_event) + event->len;
       }
-      ConvertHistogramData(cache, tr.mDocument);
-      boost::filesystem::path p = config.mStoragePath /
-        schema.GetDimensionPath(tr.mDocument["info"]) / "todo_001.log";
-      cout << p << endl;
-      // todo create path
-      // create/append/roll log file
-      // write uuid\tjson\n
     }
+    inotify_rm_watch(notify, watch);
+    close(notify);
   }
   catch (const exception& e) {
     cerr << "std exception: " << e.what();
