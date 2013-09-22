@@ -20,10 +20,8 @@ extern const unsigned kVersionPatch;
 extern const std::string kProgramName;
 extern const std::string kProgramDescription;
 
-extern const size_t kTelemetryHeaderSize;
 extern const size_t kMaxTelemetryPath;
 extern const size_t kMaxTelemetryData;
-extern const size_t kMaxTelemetryRecord;
 
 extern const char kRecordSeparator;
 

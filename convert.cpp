@@ -8,7 +8,7 @@
 
 #include "HistogramCache.h"
 #include "HistogramConverter.h"
-#include "TelemetryReader.h"
+#include "TelemetryRecord.h"
 #include "TelemetrySchema.h"
 
 #include <boost/scoped_array.hpp>
@@ -101,12 +101,11 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
     rename(fn, tfn);
     cout << "processing file:" << aName << endl;
     ifstream file(tfn.c_str());
-    mt::TelemetryReader reader(file);
     mt::TelemetryRecord tr;
-    while (reader.Read(tr)) {
-      ConvertHistogramData(aCache, tr.mDocument);
+    while (tr.Read(file)) {
+      ConvertHistogramData(aCache, tr.GetDocument());
       boost::filesystem::path p = config.mStoragePath /
-        aSchema.GetDimensionPath(tr.mDocument["info"]) / "todo_001.log";
+        aSchema.GetDimensionPath(tr.GetDocument()["info"]) / "todo_001.log";
       cout << p << endl;
       // todo create path
       // create/append/roll log file

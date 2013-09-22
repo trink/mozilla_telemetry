@@ -18,13 +18,8 @@ const unsigned kVersionPatch = @CPACK_PACKAGE_VERSION_PATCH@;
 const std::string kProgramName("@PROJECT_NAME@");
 const std::string kProgramDescription("@CPACK_PACKAGE_DESCRIPTION_SUMMARY@");
 
-// record separator, path length, data length, timestamp (Unix epoch (ms))
-const size_t kTelemetryHeaderSize = sizeof(char) + sizeof(uint16_t) +
-  sizeof(uint32_t) + sizeof(uint64_t);
 const size_t kMaxTelemetryPath = 10 * 1024;
 const size_t kMaxTelemetryData = 200 * 1024;
-const size_t kMaxTelemetryRecord = kTelemetryHeaderSize + kMaxTelemetryPath +
-  kMaxTelemetryData;
 
 const char kRecordSeparator = 0x1e;
 

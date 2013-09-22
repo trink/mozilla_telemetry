@@ -14,9 +14,9 @@ add_executable(TestHistogramConverter TestHistogramConverter.cpp)
 target_link_libraries(TestHistogramConverter telemetry ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
 ADD_TEST(TestHistogramConverter TestHistogramConverter)
 
-add_executable(TestTelemetryReader TestTelemetryReader.cpp)
-target_link_libraries(TestTelemetryReader telemetry ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
-ADD_TEST(TestTelemetryReader TestTelemetryReader)
+add_executable(TestTelemetryRecord TestTelemetryRecord.cpp)
+target_link_libraries(TestTelemetryRecord telemetry ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+ADD_TEST(TestTelemetryRecord TestTelemetryRecord)
 
 add_executable(TestTelemetrySchema TestTelemetrySchema.cpp)
 target_link_libraries(TestTelemetrySchema telemetry ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})

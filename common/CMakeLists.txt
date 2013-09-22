@@ -7,7 +7,7 @@ TelemetryConstants.cpp
 Histogram.cpp 
 HistogramCache.cpp
 HistogramConverter.cpp 
-TelemetryReader.cpp 
+TelemetryRecord.cpp 
 TelemetrySchema.cpp)
 
 add_library(telemetry STATIC ${TELEMETRY_SRC})
