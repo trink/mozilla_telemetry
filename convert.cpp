@@ -61,35 +61,36 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
-  rapidjson::Value& v = doc["input_directory"];
-  if (!v.IsString()) {
+
+  rapidjson::Value& idir = doc["input_directory"]; 
+  if (!idir.IsString()) {
     throw runtime_error("input_directory not specified");
   }
-  aConfig.mInputDirectory = v.GetString();
+  aConfig.mInputDirectory = idir.GetString();
 
-  v = doc["telemetry_schema"];
-  if (!v.IsString()) {
+  rapidjson::Value& ts = doc["telemetry_schema"];
+  if (!ts.IsString()) {
     throw runtime_error("telemetry_schema not specified");
   }
-  aConfig.mTelemetrySchema = v.GetString();
+  aConfig.mTelemetrySchema = ts.GetString();
 
-  v = doc["cache_path"];
-  if (!v.IsString()) {
+  rapidjson::Value& cp = doc["cache_path"];
+  if (!cp.IsString()) {
     throw runtime_error("cache_path not specified");
   }
-  aConfig.mCachePath = v.GetString();
+  aConfig.mCachePath = cp.GetString();
 
-  v = doc["storage_path"];
-  if (!v.IsString()) {
+  rapidjson::Value& sp = doc["storage_path"];
+  if (!sp.IsString()) {
     throw runtime_error("storage_path not specified");
   }
-  aConfig.mStoragePath = v.GetString();
+  aConfig.mStoragePath = sp.GetString();
 
-  v = doc["log_path"];
-  if (!v.IsString()) {
+  rapidjson::Value& lp = doc["log_path"];
+  if (!lp.IsString()) {
     throw runtime_error("log_path not specified");
   }
-  aConfig.mLogPath = v.GetString();
+  aConfig.mLogPath = lp.GetString();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
