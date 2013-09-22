@@ -13,6 +13,7 @@
 
 #include <boost/scoped_array.hpp>
 #include <boost/filesystem.hpp>
+#include <csignal>
 #include <exception>
 #include <fstream>
 #include <iostream>
@@ -121,6 +122,13 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
   }
 }
 
+static sig_atomic_t gStop = 0;
+////////////////////////////////////////////////////////////////////////////////
+void shutdown (int)
+{
+    gStop = 1;
+}
+
 const size_t kMaxEventSize = sizeof(struct inotify_event) + FILENAME_MAX + 1;
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
@@ -129,6 +137,10 @@ int main(int argc, char** argv)
     cerr << "usage: " << argv[0] << " <json config>\n";
     return EXIT_FAILURE;
   }
+  signal(SIGHUP, shutdown);
+  signal(SIGINT, shutdown);
+  signal(SIGTERM, shutdown);
+  signal(SIGUSR2, shutdown);
 
   try {
     ConvertConfig config;
@@ -145,7 +157,7 @@ int main(int argc, char** argv)
                                   IN_CLOSE_WRITE);
     int bytesRead;
     char buf[kMaxEventSize];
-    while (true) {
+    while (!gStop) {
       bytesRead = read(notify, buf, kMaxEventSize);
       if (bytesRead < 0) break;
 
