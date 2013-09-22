@@ -81,7 +81,7 @@ bool ConvertHistogramData(HistogramCache& aCache, rapidjson::Document& aDoc)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool RewriteValues(std::shared_ptr<HistogramDefinition> aDef,
+bool RewriteValues(const HistogramDefinition* aDef,
                    const rapidjson::Value& aData,
                    std::vector<double>& aRewrite)
 {
@@ -127,7 +127,7 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
        it != aValue.MemberEnd(); ++it) {
     if (it->value.IsObject()) {
       const char* name = reinterpret_cast<const char*>(it->name.GetString());
-      std::shared_ptr<HistogramDefinition> hd = aHist->GetDefinition(name);
+      const HistogramDefinition* hd = aHist->GetDefinition(name);
       if (!hd) {
         if (strncmp(name, "STARTUP_", 8)) {
           hd = aHist->GetDefinition(name + 8);

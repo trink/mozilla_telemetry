@@ -17,7 +17,7 @@ BOOST_AUTO_TEST_CASE(test_load)
   string fn(kDataPath + "cache/ad0ae007aa9e.json");
   try {
     Histogram h(fn);
-    shared_ptr<HistogramDefinition> hd = h.GetDefinition("CYCLE_COLLECTOR");
+    const HistogramDefinition* hd = h.GetDefinition("CYCLE_COLLECTOR");
     BOOST_REQUIRE(hd);
     int bc = hd->GetBucketCount();
     BOOST_REQUIRE_EQUAL(50, bc);
@@ -25,7 +25,7 @@ BOOST_AUTO_TEST_CASE(test_load)
     BOOST_REQUIRE_EQUAL(12, index);
     index = hd->GetBucketIndex(18);
     BOOST_REQUIRE_EQUAL(-1, index);
-    shared_ptr<HistogramDefinition> nf = h.GetDefinition("NOT_FOUND");
+    const HistogramDefinition* nf = h.GetDefinition("NOT_FOUND");
     BOOST_REQUIRE(!nf);
   }
   catch (const exception& e) {

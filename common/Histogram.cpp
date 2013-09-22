@@ -8,8 +8,9 @@
 
 #include "Histogram.h"
 
-#include <boost/scoped_array.hpp>
+#include <boost/functional/hash.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/scoped_array.hpp>
 #include <exception>
 #include <fstream>
 #include <rapidjson/reader.h>
@@ -107,14 +108,27 @@ Histogram::Histogram(const boost::filesystem::path& fileName)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-std::shared_ptr<HistogramDefinition>
+Histogram::~Histogram()
+{
+  auto end = mDefinitions.end();
+  for (auto it = mDefinitions.begin(); it != end; ){
+    char* key = it->first;
+    HistogramDefinition* hd = it->second;
+    mDefinitions.erase(it++);
+    delete[] key;
+    delete hd;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+const HistogramDefinition*
 Histogram::GetDefinition(const char* aName) const
 {
-  auto it = mDefinitions.find(aName);
+  auto it = mDefinitions.find(const_cast<char*>(aName));
   if (it != mDefinitions.end()) {
     return it->second;
   }
-  return shared_ptr<HistogramDefinition>();
+  return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -136,8 +150,10 @@ Histogram::LoadDefinitions(const rapidjson::Document& aDoc)
       throw runtime_error(ss.str());
     }
     try {
-      shared_ptr<HistogramDefinition> def(new HistogramDefinition(it->value));
-      mDefinitions.insert(make_pair(name, def));
+      HistogramDefinition* hd = new HistogramDefinition(it->value);
+      char* key = new char[strlen(name) + 1];
+      strcpy(key, name);
+      mDefinitions.insert(make_pair(key, hd));
     }
     catch (exception& e) {
       stringstream ss;
