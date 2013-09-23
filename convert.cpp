@@ -10,6 +10,7 @@
 #include "HistogramConverter.h"
 #include "TelemetryRecord.h"
 #include "TelemetrySchema.h"
+#include "RecordWriter.h"
 
 #include <boost/scoped_array.hpp>
 #include <boost/filesystem.hpp>
@@ -18,6 +19,8 @@
 #include <fstream>
 #include <iostream>
 #include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include <sstream>
 #include <sys/inotify.h>
 #include <thread>
@@ -28,11 +31,15 @@ namespace mt = mozilla::telemetry;
 
 struct ConvertConfig
 {
-  fs::path mInputDirectory;
-  fs::path mTelemetrySchema;
-  fs::path mCachePath;
-  fs::path mStoragePath;
-  fs::path mLogPath;
+  fs::path  mInputDirectory;
+  fs::path  mTelemetrySchema;
+  fs::path  mCachePath;
+  fs::path  mStoragePath;
+  fs::path  mLogPath;
+  fs::path  mUploadPath;
+  uint64_t  mMaxUncompressed;
+  size_t    mMemoryConstraint;
+  int      mCompressionPreset;
 };
 
 void read_config(const char* aFile, ConvertConfig& aConfig)
@@ -62,7 +69,7 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
     throw runtime_error(ss.str());
   }
 
-  rapidjson::Value& idir = doc["input_directory"]; 
+  rapidjson::Value& idir = doc["input_directory"];
   if (!idir.IsString()) {
     throw runtime_error("input_directory not specified");
   }
@@ -91,11 +98,36 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
     throw runtime_error("log_path not specified");
   }
   aConfig.mLogPath = lp.GetString();
+
+  rapidjson::Value& up = doc["upload_path"];
+  if (!up.IsString()) {
+    throw runtime_error("upload_path not specified");
+  }
+  aConfig.mUploadPath = up.GetString();
+
+  rapidjson::Value& mu = doc["max_uncompressed"];
+  if (!mu.IsUint64()) {
+    throw runtime_error("max_uncompressed not specified");
+  }
+  aConfig.mMaxUncompressed = mu.GetUint64();
+
+  rapidjson::Value& mc = doc["memory_constraint"];
+  if (!mc.IsUint()) {
+    throw runtime_error("memory_constraint not specified");
+  }
+  aConfig.mMemoryConstraint = mc.GetUint();
+
+  rapidjson::Value& cpr = doc["compression_preset"];
+  if (!cpr.IsInt()) {
+    throw runtime_error("compression_preset not specified");
+  }
+  aConfig.mCompressionPreset = cpr.GetInt();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 void ProcessFile(const ConvertConfig& config, const char* aName,
-                 const mt::TelemetrySchema& aSchema, mt::HistogramCache& aCache)
+                 const mt::TelemetrySchema& aSchema, mt::HistogramCache& aCache,
+                 mt::RecordWriter& aWriter)
 {
   try {
     fs::path fn = config.mInputDirectory / aName;
@@ -104,14 +136,16 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
     cout << "processing file:" << aName << endl;
     ifstream file(tfn.c_str());
     mt::TelemetryRecord tr;
+    rapidjson::StringBuffer sb;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
     while (tr.Read(file)) {
-      ConvertHistogramData(aCache, tr.GetDocument());
-      boost::filesystem::path p = config.mStoragePath /
-        aSchema.GetDimensionPath(tr.GetDocument()["info"]) / "todo_001.log";
-      cout << p << endl;
-      // todo create path
-      // create/append/roll log file
-      // write uuid\tjson\n
+      if (ConvertHistogramData(aCache, tr.GetDocument())) {
+        tr.GetDocument().Accept(writer);
+        boost::filesystem::path p = aSchema.GetDimensionPath(tr.GetDocument());
+        aWriter.Write(p, sb.GetString(), sb.Size());
+      } else {
+        cerr << "Conversion failed: " << tr.GetPath() << endl;
+      }
     }
     remove(tfn);
   }
@@ -125,9 +159,9 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
 
 static sig_atomic_t gStop = 0;
 ////////////////////////////////////////////////////////////////////////////////
-void shutdown (int)
+void shutdown(int)
 {
-    gStop = 1;
+  gStop = 1;
 }
 
 const size_t kMaxEventSize = sizeof(struct inotify_event) + FILENAME_MAX + 1;
@@ -148,6 +182,9 @@ int main(int argc, char** argv)
     read_config(argv[1], config);
     mt::HistogramCache cache(config.mCachePath);
     mt::TelemetrySchema schema(config.mTelemetrySchema);
+    mt::RecordWriter writer(config.mStoragePath, config.mUploadPath,
+                            config.mMaxUncompressed, config.mMemoryConstraint,
+                            config.mCompressionPreset);
 
     int notify = inotify_init();
     if (notify < 0) {
@@ -166,7 +203,7 @@ int main(int argc, char** argv)
       while (i < bytesRead) {
         inotify_event* event = reinterpret_cast<inotify_event*>(&buf[i]);
         if (event->len) { // event->mask & IN_CLOSE_WRITE
-          ProcessFile(config, event->name, schema, cache);
+          ProcessFile(config, event->name, schema, cache, writer);
         }
         i += sizeof(struct inotify_event) + event->len;
       }

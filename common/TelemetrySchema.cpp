@@ -104,13 +104,17 @@ TelemetrySchema::TelemetrySchema(const boost::filesystem::path& fileName)
 
 ////////////////////////////////////////////////////////////////////////////////
 boost::filesystem::path
-TelemetrySchema::GetDimensionPath(const rapidjson::Value& aInfo) const
+TelemetrySchema::GetDimensionPath(const rapidjson::Document& aDoc) const
 {
+  const rapidjson::Value& info = aDoc["info"];
+  if (!info.IsObject()) {
+    throw runtime_error("info element must be an object");
+  }
   static const string kOther("other");
   boost::filesystem::path p;
   auto end = mDimensions.end();
   for (auto it = mDimensions.begin(); it != end; ++it){
-    const rapidjson::Value& v = aInfo[(*it)->mName.c_str()];
+    const rapidjson::Value& v = info[(*it)->mName.c_str()];
     if (v.IsString()) {
       string dim = v.GetString();
       switch ((*it)->mType) {

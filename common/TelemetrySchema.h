@@ -38,11 +38,11 @@ public:
    * Constructs the storage layout path based on the configured schema and 
    * the histogram info object values. 
    * 
-   * @param aInfo Histogram info object.
+   * @param aDoc Histogram object.
    * 
    * @return boost::filesystem::path 
    */
-  boost::filesystem::path GetDimensionPath(const rapidjson::Value& aInfo) const;
+  boost::filesystem::path GetDimensionPath(const rapidjson::Document& aDoc) const;
 
 private:
 

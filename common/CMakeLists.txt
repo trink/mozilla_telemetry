@@ -8,7 +8,8 @@ Histogram.cpp
 HistogramCache.cpp
 HistogramConverter.cpp 
 TelemetryRecord.cpp 
-TelemetrySchema.cpp)
+TelemetrySchema.cpp
+RecordWriter.cpp)
 
 add_library(telemetry STATIC ${TELEMETRY_SRC})
 add_dependencies(telemetry rapidjson-0_11)

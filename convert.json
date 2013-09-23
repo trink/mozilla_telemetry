@@ -3,5 +3,9 @@
     "telemetry_schema": "../common/test/data/telemetry_schema.json",
     "cache_path": "../common/test/data/cache",
     "storage_path": "./storage",
-    "log_path": "./log"
+    "log_path": "./log",
+    "upload_path": "./upload",               
+    "max_uncompressed": 1048576,
+    "memory_constraint": 1000,
+    "compression_preset": 0
 }
