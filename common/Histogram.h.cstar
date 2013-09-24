@@ -11,9 +11,7 @@ Accessor and utility functions functions for the Histogram.json data structure.
 #ifndef mozilla_telemetry_Histogram_h
 #define mozilla_telemetry_Histogram_h
 
-#include <boost/functional/hash_fwd.hpp>
-#include <boost/utility.hpp>
-#include <functional>
+#include <boost/filesystem.hpp>
 #include <map>
 #include <memory>
 #include <rapidjson/document.h>
@@ -27,7 +25,7 @@ namespace telemetry {
  * Stores a specific histogram definition within a histogram file
  * 
  */
-class HistogramDefinition : boost::noncopyable
+class HistogramDefinition
 {
 public:
 
@@ -41,7 +39,7 @@ public:
    * 
    * @return int The bucket index or -1 if the lower bound is invalid.
    */
-  int GetBucketIndex(long aLowerBound) const;
+  int GetBucketIndex(int aLowerBound) const;
 
   /**
    * Returns the number of counter buckets in the definition.
@@ -63,42 +61,28 @@ inline int HistogramDefinition::GetBucketCount() const
   return mBucketCount;
 }
 
-struct Cstring_equal_to : std::binary_function<char*, char*, bool>
+struct Cstring_less
 {
-  bool operator ()(const char* p, const char* q) const
-  {
-    return std::strcmp(p, q) == 0;
-  }
-};
-
-struct Cstring_hash : std::unary_function<char*, std::size_t>
-{
-  std::size_t operator ()(const char* p) const
-  {
-    std::size_t seed = 0;
-    for (const char* i = p; *i != 0; ++i) {
-      boost::hash_combine(seed, *i);
-    }
-    return seed;
-  }
+   bool operator()(char const *p, char const *q)
+   {
+      return std::strcmp(p, q) < 0;
+   }
 };
 
 /** 
  * Stores the set of histogram definitions within a histogram file.
  * 
  */
-class Histogram : boost::noncopyable
+class Histogram
 {
 public:
   /**
-   * Loads the specified Histogram.json into memory.
+   * Loads the specified Histogram.json file from disk into memory
    * 
-   * @param aJSON JSON histogram data.
-   * 
-   * @return
+   * @param fileName Fully qualified name of histogram file.
    * 
    */
-  Histogram(const std::string& aJSON);
+  Histogram(const boost::filesystem::path& fileName);
   ~Histogram();
 
 
@@ -110,7 +94,7 @@ public:
    * @return HistogramDefinition Histogram definition or nullptr if the
    * definition is not found.
    */
-  const HistogramDefinition* GetDefinition(const char* aName) const;
+  std::shared_ptr<HistogramDefinition> GetDefinition(const char* aName) const;
 
 private:
 
@@ -122,8 +106,9 @@ private:
    */
   void LoadDefinitions(const rapidjson::Document& aDoc);
 
-  std::unordered_map<char*, HistogramDefinition*, Cstring_hash,
-                     Cstring_equal_to> mDefinitions;
+  std::unordered_map<std::string, std::shared_ptr<HistogramDefinition> > mDefinitions;
+
+  std::map<char*, std::shared_ptr<HistogramDefinition>, cmp_str> mDefinitions1;
 };
 
 }

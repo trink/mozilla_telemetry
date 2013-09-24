@@ -9,7 +9,7 @@
 #include "HistogramConverter.h"
 #include "TelemetryConstants.h"
 
-#include <boost/lexical_cast.hpp>
+#include <iostream>
 #include <memory>
 #include <vector>
 
@@ -30,25 +30,25 @@ bool ConvertHistogramData(HistogramCache& aCache, rapidjson::Document& aDoc)
 {
   const rapidjson::Value& info = aDoc["info"];
   if (!info.IsObject()) {
-    // todo log error - missing info object
+    //cerr << "ConvertHistogramData - missing info object\n";
     return false;
   }
 
   const rapidjson::Value& revision = info["revision"];
   if (!revision.IsString()) {
-    // todo log error - missing info.revision
+    //cerr << "ConvertHistogramData - missing info.revision\n";
     return false;
   }
 
   rapidjson::Value& histograms = aDoc["histograms"];
   if (!histograms.IsObject()) {
-    // todo log error - missing histograms object
+    //cerr << "ConvertHistogramData - missing hintograms object\n";
     return false;
   }
 
   rapidjson::Value& ver = aDoc["ver"];
   if (!ver.IsInt() || ver.GetInt() != 1) {
-    // todo log error - missing version
+    //cerr << "ConvertHistogramData - missing ver\n";
     return false;
   }
 
@@ -56,24 +56,25 @@ bool ConvertHistogramData(HistogramCache& aCache, rapidjson::Document& aDoc)
   switch (ver.GetInt()) {
   case 1:
     {
-      string rev = aCache.GetRevisionKey(revision.GetString());
-      shared_ptr<Histogram> hist = aCache.FindHistogram(rev);
+      shared_ptr<Histogram> hist = aCache.FindHistogram(revision.GetString());
       if (hist) {
-        result = RewriteHistogram(hist, histograms); 
+        result = RewriteHistogram(hist, histograms);
         if (result) {
           ver.SetInt(2);
         } else {
           ver.SetInt(-1);
         }
       } else {
-        // todo log error - histogram not found
+        cerr << "ConvertHistogramData - histogram not found: " << revision.GetString() << endl;
+        result = false;
       }
     }
     break;
   case 2: // already converted
     break;
   default:
-    // todo log error - invalid version
+    cerr << "ConvertHistogramData - invalid version\n";
+    result = false;
     break;
   }
 
@@ -87,27 +88,20 @@ bool RewriteValues(const HistogramDefinition* aDef,
 {
   const rapidjson::Value& values = aData["values"];
   if (!values.IsObject()) {
-    // todo log error - value object not found
+    cerr << "RewriteValues - value object not found\n";
     return false;
   }
   for (rapidjson::Value::ConstMemberIterator it = values.MemberBegin();
        it != values.MemberEnd(); ++it) {
     if (!it->value.IsInt()) {
-      // todo log error - invalid value object
+      cerr << "RewriteValues - invalid value object\n";
       return false;
     }
-    int lb = 0;
-    try {
-      lb = boost::lexical_cast<int>(it->name.GetString());
-    }
-    catch (boost::bad_lexical_cast&) {
-      // todo log error - non integer bucket lower bound
-      return false;
-    }
+    long lb = strtol(it->name.GetString(), nullptr, 10);
     int i = it->value.GetInt();
     int index = aDef->GetBucketIndex(lb);
     if (index == -1) {
-      // todo log error - invalid bucket lower bound
+      cerr << "RewriteValues - invalid bucket lower bound\n";
       return false;
     }
     aRewrite[index] = i;
@@ -120,7 +114,6 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
 {
   rapidjson::Document doc;
   rapidjson::Document::AllocatorType& alloc = doc.GetAllocator();
-  std::vector<double> rewrite;
   bool result = true;
 
   for (rapidjson::Value::MemberIterator it = aValue.MemberBegin(); result &&
@@ -141,8 +134,7 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
       if (hd) {
         int bucketCount = hd->GetBucketCount();
         int arraySize = bucketCount + kExtraBucketsSize;
-        rewrite.clear();
-        rewrite.resize(arraySize);
+        vector<double> rewrite(arraySize);
         result = RewriteValues(hd, it->value, rewrite);
         if (result) {
           // append the summary data at the end of the array
@@ -163,10 +155,10 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
           }
         }
       } else {
-        // todo log warning - histogram definitition lookup failed
+        //cerr << "RewriteHistogram - histogram definitition lookup failed: " << name << endl;
       }
     } else {
-      // todo log warning - not a histogram object
+      cerr << "RewriteHistogram - not a histogram object\n";
     }
   }
   return result;

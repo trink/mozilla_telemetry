@@ -26,9 +26,8 @@ BOOST_AUTO_TEST_CASE(test_converter)
   d.Parse<0>(hist);
   BOOST_REQUIRE(!d.HasParseError());
 
-  string cachePath(kDataPath + "cache");
-  HistogramCache cache(cachePath);
-  ConvertHistogramData(cache, d);
+  HistogramCache cache("localhost:9898");
+  BOOST_REQUIRE_EQUAL(true, ConvertHistogramData(cache, d));
   rapidjson::StringBuffer sb;
   rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
   d.Accept(writer);

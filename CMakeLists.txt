@@ -13,13 +13,16 @@ set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(mozsvc)
 include(externals)
 
+find_package (Threads)
 find_package(ZLIB REQUIRED)
+find_package(OpenSSL REQUIRED)
 find_package(Boost 1.51.0 REQUIRED 
-filesystem  
-system 
+filesystem
+system
+thread
 unit_test_framework)
 
-include_directories(${Boost_INCLUDE_DIRS} "${CMAKE_SOURCE_DIR}/common")
+include_directories(${Boost_INCLUDE_DIRS} ${OPENSSL_INCLUDE_DIR} "${CMAKE_SOURCE_DIR}/common")
 
 add_executable(convert convert.cpp)
 target_link_libraries(convert telemetry)

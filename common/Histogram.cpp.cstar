@@ -8,12 +8,11 @@
 
 #include "Histogram.h"
 
-#include <boost/functional/hash.hpp>
+#include <boost/scoped_array.hpp>
 #include <boost/lexical_cast.hpp>
 #include <exception>
 #include <fstream>
-#include <rapidjson/document.h>
-#include <rapidjson/filestream.h>
+#include <rapidjson/reader.h>
 
 using namespace std;
 namespace mozilla {
@@ -68,7 +67,7 @@ HistogramDefinition::HistogramDefinition(const rapidjson::Value& aValue)
 
 ////////////////////////////////////////////////////////////////////////////////
 int
-HistogramDefinition::GetBucketIndex(long aLowerBound) const
+HistogramDefinition::GetBucketIndex(int aLowerBound) const
 {
   auto it = mBuckets.find(aLowerBound);
   if (it == mBuckets.end()) {
@@ -78,10 +77,28 @@ HistogramDefinition::GetBucketIndex(long aLowerBound) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-Histogram::Histogram(const std::string& aJSON)
+Histogram::Histogram(const boost::filesystem::path& fileName)
 {
+  ifstream ifs(fileName.c_str(), ifstream::binary);
+  if (!ifs) {
+    stringstream ss;
+    ss << "file open failed: " << fileName.string();
+    throw runtime_error(ss.str());
+  }
+
+  ifs.seekg(0, ifs.end);
+  size_t len = ifs.tellg();
+  ifs.seekg(0, ifs.beg);
+
+  boost::scoped_array<char> buffer(new char[len + 1]);
+  if (!ifs.read(buffer.get(), len)) {
+    throw runtime_error("read failed");
+  }
+  ifs.close();
+
+  buffer.get()[len] = 0;
   rapidjson::Document doc;
-  if (doc.Parse<0>(aJSON.c_str()).HasParseError()) {
+  if (doc.ParseInsitu<0>(buffer.get()).HasParseError()) {
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
@@ -92,25 +109,23 @@ Histogram::Histogram(const std::string& aJSON)
 ////////////////////////////////////////////////////////////////////////////////
 Histogram::~Histogram()
 {
-  auto end = mDefinitions.end();
-  for (auto it = mDefinitions.begin(); it != end; ){
+  auto end = mDefinitions1.end();
+  for (auto it = mDefinitions1.begin(); it != end; ){
     char* key = it->first;
-    HistogramDefinition* hd = it->second;
     mDefinitions.erase(it++);
     delete[] key;
-    delete hd;
   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const HistogramDefinition*
+std::shared_ptr<HistogramDefinition>
 Histogram::GetDefinition(const char* aName) const
 {
-  auto it = mDefinitions.find(const_cast<char*>(aName));
+  auto it = mDefinitions.find(aName);
   if (it != mDefinitions.end()) {
     return it->second;
   }
-  return nullptr;
+  return shared_ptr<HistogramDefinition>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -132,10 +147,11 @@ Histogram::LoadDefinitions(const rapidjson::Document& aDoc)
       throw runtime_error(ss.str());
     }
     try {
-      HistogramDefinition* hd = new HistogramDefinition(it->value);
-      char* key = new char[strlen(name) + 1];
+      shared_ptr<HistogramDefinition> def(new HistogramDefinition(it->value));
+      mDefinitions.insert(make_pair(name, def));
+      char* key = new[] char[strlen(name) + 1];
       strcpy(key, name);
-      mDefinitions.insert(make_pair(key, hd));
+      mDefinitions.insert(key, def);
     }
     catch (exception& e) {
       stringstream ss;

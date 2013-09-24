@@ -33,11 +33,18 @@ RecordWriter::RecordWriter(boost::filesystem::path aWorkFolder,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void RecordWriter::Write(const boost::filesystem::path& aFilterPath,
-           const char* aRecord, size_t aLength)
+//void RecordWriter::Write(const boost::filesystem::path& aFilterPath,
+//           const char* aRecord, size_t aLength)
+//{
+//  cout << (mWorkFolder / aFilterPath) << " [" << aLength << "]: " << aRecord
+//    << endl;
+//
+//}
+
+////////////////////////////////////////////////////////////////////////////////
+void RecordWriter::Write(const boost::filesystem::path& ,
+           const char* , size_t )
 {
-  cout << (mWorkFolder / aFilterPath) << " [" << aLength << "]: " << aRecord
-    << endl;
 
 }
 

@@ -9,14 +9,18 @@
 #include "TestConfig.h"
 #include "../Histogram.h"
 
+#include <fstream>
+
 using namespace std;
 using namespace mozilla::telemetry;
 
 BOOST_AUTO_TEST_CASE(test_load)
 {
   string fn(kDataPath + "cache/ad0ae007aa9e.json");
+  ifstream ifs(fn.c_str());
+  string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(fn);
+    Histogram h(json);
     const HistogramDefinition* hd = h.GetDefinition("CYCLE_COLLECTOR");
     BOOST_REQUIRE(hd);
     int bc = hd->GetBucketCount();
@@ -33,23 +37,13 @@ BOOST_AUTO_TEST_CASE(test_load)
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_missing_file)
-{
-  string fn(kDataPath + "missing.json");
-  try {
-    Histogram h(fn); 
-    BOOST_FAIL("exception expected");
-  }
-  catch (const exception& e) {
-    BOOST_REQUIRE_EQUAL(e.what(), "file open failed: " + fn);
-  }
-}
-
 BOOST_AUTO_TEST_CASE(test_invalid_file)
 {
   string fn(kDataPath + "invalid.json");
+  ifstream ifs(fn.c_str());
+  string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(fn); 
+    Histogram h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {
@@ -61,8 +55,10 @@ BOOST_AUTO_TEST_CASE(test_invalid_file)
 BOOST_AUTO_TEST_CASE(test_invalid_schema)
 {
   string fn(kDataPath + "invalid_schema.json");
+  ifstream ifs(fn.c_str());
+  string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(fn); 
+    Histogram h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {
@@ -73,8 +69,10 @@ BOOST_AUTO_TEST_CASE(test_invalid_schema)
 BOOST_AUTO_TEST_CASE(test_missing_kind)
 {
   string fn(kDataPath + "missing_kind.json");
+  ifstream ifs(fn.c_str());
+  string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(fn); 
+    Histogram h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {
@@ -85,8 +83,10 @@ BOOST_AUTO_TEST_CASE(test_missing_kind)
 BOOST_AUTO_TEST_CASE(test_invalid_kind)
 {
   string fn(kDataPath + "invalid_kind.json");
+  ifstream ifs(fn.c_str());
+  string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(fn); 
+    Histogram h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {

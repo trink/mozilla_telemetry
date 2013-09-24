@@ -15,6 +15,7 @@ and loads the histogram file from disk and adds it to the cache.
 #include "Histogram.h"
 
 #include <boost/filesystem.hpp>
+#include <map>
 #include <memory>
 #include <unordered_map>
 #include <string>
@@ -25,20 +26,12 @@ namespace telemetry {
 class HistogramCache
 {
 public:
-  HistogramCache(const boost::filesystem::path &aCachePath);
-
-  /**
-   * Retrieves the requested histogram revision from disk.
-   * 
-   * @param aRevisionKey Revision of the histogram file to load.
-   * 
-   * @return const Histogram* nullptr if load fails
-   */
-  std::shared_ptr<Histogram> LoadHistogram(const std::string &aRevisionKey);
+  HistogramCache(const std::string& aCacheURL);
 
   /**
    * Retrieves the requested histogram revision from cache.  If not cached it 
-   * will attempt to load the file from disk and add it to the cache. 
+   * will attempt to load the file from the histogram server and add it to the 
+   * cache. 
    * 
    * @param aRevision RevisionKey of the histogram file to load.
    * 
@@ -46,19 +39,24 @@ public:
    */
   std::shared_ptr<Histogram> FindHistogram(const std::string &aRevisionKey);
 
-  /**
-   * Extracts the revision identifier from the URL
-   * 
-   * @param aRevisionURL info.revision URL from the histogram data
-   * 
-   * @return std::string Revision identifer key used by the cache.
-   */
-  static std::string GetRevisionKey(const std::string &aRevisionURL);
-
 private:
+  /**
+   * Retrieves the requested histogram revision from the histogram server.
+   * 
+   * @param aRevisionKey Revision of the histogram file to load.
+   * 
+   * @return const Histogram* nullptr if load fails
+   */
+  std::shared_ptr<Histogram> LoadHistogram(const std::string &aRevisionKey);
 
-  boost::filesystem::path mCachePath;
+  std::string mCacheHost;
+  std::string mCachePort;
+
+  /// Cache of histogram schema keyed by MD5
   std::unordered_map<std::string, std::shared_ptr<Histogram>> mCache;
+
+  /// Cache of histogram schema keyed by revision
+  std::map<std::string, std::shared_ptr<Histogram>> mRevisions;
 };
 
 }

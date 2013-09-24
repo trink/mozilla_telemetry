@@ -9,10 +9,10 @@
 #include "TelemetrySchema.h"
 
 #include <boost/lexical_cast.hpp>
-#include <boost/scoped_array.hpp>
 #include <boost/xpressive/xpressive.hpp>
 #include <fstream>
 #include <rapidjson/document.h>
+#include <rapidjson/filestream.h>
 #include <sstream>
 
 using namespace std;
@@ -69,30 +69,22 @@ TelemetrySchema::TelemetryDimension::TelemetryDimension(const rapidjson::Value& 
 ////////////////////////////////////////////////////////////////////////////////
 TelemetrySchema::TelemetrySchema(const boost::filesystem::path& fileName)
 {
-  ifstream ifs(fileName.c_str(), ifstream::binary);
-  if (!ifs) {
+  FILE* fh = fopen(fileName.c_str(), "r");
+  if (!fh) {
     stringstream ss;
     ss << "file open failed: " << fileName.string();
     throw runtime_error(ss.str());
   }
+  rapidjson::FileStream is(fh);
 
-  ifs.seekg(0, ifs.end);
-  size_t len = ifs.tellg();
-  ifs.seekg(0, ifs.beg);
-
-  boost::scoped_array<char> buffer(new char[len + 1]);
-  if (!ifs.read(buffer.get(), len)) {
-    throw runtime_error("read failed");
-  }
-  ifs.close();
-
-  buffer.get()[len] = 0;
   rapidjson::Document doc;
-  if (doc.Parse<0>(buffer.get()).HasParseError()) {
+  if (doc.ParseStream<0>(is).HasParseError()) {
+    fclose(fh);
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
+  fclose(fh);
 
   const rapidjson::Value& version = doc["version"];
   if (!version.IsInt()) {

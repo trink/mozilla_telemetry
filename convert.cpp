@@ -12,18 +12,18 @@
 #include "TelemetrySchema.h"
 #include "RecordWriter.h"
 
-#include <boost/scoped_array.hpp>
 #include <boost/filesystem.hpp>
+#include <chrono>
 #include <csignal>
 #include <exception>
 #include <fstream>
 #include <iostream>
 #include <rapidjson/document.h>
+#include <rapidjson/filestream.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <sstream>
 #include <sys/inotify.h>
-#include <thread>
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -31,43 +31,35 @@ namespace mt = mozilla::telemetry;
 
 struct ConvertConfig
 {
-  fs::path  mInputDirectory;
-  fs::path  mTelemetrySchema;
-  fs::path  mCachePath;
-  fs::path  mStoragePath;
-  fs::path  mLogPath;
-  fs::path  mUploadPath;
-  uint64_t  mMaxUncompressed;
-  size_t    mMemoryConstraint;
-  int      mCompressionPreset;
+  fs::path    mInputDirectory;
+  fs::path    mTelemetrySchema;
+  std::string mCacheHost;
+  fs::path    mStoragePath;
+  fs::path    mLogPath;
+  fs::path    mUploadPath;
+  uint64_t    mMaxUncompressed;
+  size_t      mMemoryConstraint;
+  int         mCompressionPreset;
 };
 
 void read_config(const char* aFile, ConvertConfig& aConfig)
 {
-  ifstream ifs(aFile, ifstream::binary);
-  if (!ifs) {
+  FILE* fh = fopen(aFile, "r");
+  if (!fh) {
     stringstream ss;
     ss << "file open failed: " << aFile;
     throw runtime_error(ss.str());
   }
+  rapidjson::FileStream is(fh);
 
-  ifs.seekg(0, ifs.end);
-  size_t len = ifs.tellg();
-  ifs.seekg(0, ifs.beg);
-
-  boost::scoped_array<char> buffer(new char[len + 1]);
-  if (!ifs.read(buffer.get(), len)) {
-    throw runtime_error("read failed");
-  }
-  ifs.close();
-
-  buffer.get()[len] = 0;
   rapidjson::Document doc;
-  if (doc.ParseInsitu<0>(buffer.get()).HasParseError()) {
+  if (doc.ParseStream<0>(is).HasParseError()) {
+    fclose(fh);
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
+  fclose(fh);
 
   rapidjson::Value& idir = doc["input_directory"];
   if (!idir.IsString()) {
@@ -81,11 +73,11 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
   }
   aConfig.mTelemetrySchema = ts.GetString();
 
-  rapidjson::Value& cp = doc["cache_path"];
-  if (!cp.IsString()) {
-    throw runtime_error("cache_path not specified");
+  rapidjson::Value& ch = doc["cache_host"];
+  if (!ch.IsString()) {
+    throw runtime_error("cache_host not specified");
   }
-  aConfig.mCachePath = cp.GetString();
+  aConfig.mCacheHost = ch.GetString();
 
   rapidjson::Value& sp = doc["storage_path"];
   if (!sp.IsString()) {
@@ -134,10 +126,13 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
     fs::path tfn = fs::temp_directory_path() / aName;
     rename(fn, tfn);
     cout << "processing file:" << aName << endl;
+    chrono::time_point<chrono::system_clock> start, end;
+    start = chrono::system_clock::now();
     ifstream file(tfn.c_str());
     mt::TelemetryRecord tr;
-    rapidjson::StringBuffer sb;
+    rapidjson::StringBuffer sb; 
     rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+    int cnt = 0, errors = 0;
     while (tr.Read(file)) {
       if (ConvertHistogramData(aCache, tr.GetDocument())) {
         tr.GetDocument().Accept(writer);
@@ -145,8 +140,13 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
         aWriter.Write(p, sb.GetString(), sb.Size());
       } else {
         cerr << "Conversion failed: " << tr.GetPath() << endl;
+        ++errors;
       }
+      ++cnt;
     }
+    end = chrono::system_clock::now();
+    chrono::duration<double> elapsed = end - start;
+    cout << "done processing file:" << aName << " records:" << cnt << " failed conversions: " << errors << " " << elapsed.count() << endl;
     remove(tfn);
   }
   catch (const exception& e) {
@@ -180,7 +180,7 @@ int main(int argc, char** argv)
   try {
     ConvertConfig config;
     read_config(argv[1], config);
-    mt::HistogramCache cache(config.mCachePath);
+    mt::HistogramCache cache(config.mCacheHost);
     mt::TelemetrySchema schema(config.mTelemetrySchema);
     mt::RecordWriter writer(config.mStoragePath, config.mUploadPath,
                             config.mMaxUncompressed, config.mMemoryConstraint,
