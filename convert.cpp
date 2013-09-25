@@ -114,22 +114,19 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void ProcessFile(const ConvertConfig& config, const char* aName,
+void ProcessFile(const boost::filesystem::path& aName,
                  const mt::TelemetrySchema& aSchema, mt::HistogramCache& aCache,
                  mt::RecordWriter& aWriter)
 {
   try {
-    fs::path fn = config.mInputDirectory / aName;
-    fs::path tfn = fs::temp_directory_path() / aName;
-    rename(fn, tfn);
-    cout << "processing file:" << aName << endl;
+    cout << "processing file:" << aName.filename() << endl;
     chrono::time_point<chrono::system_clock> start, end;
     start = chrono::system_clock::now();
-    ifstream file(tfn.c_str());
+    ifstream file(aName.c_str());
     mt::TelemetryRecord tr;
     rapidjson::StringBuffer sb;
     rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
-    int cnt = 0, errors = 0;
+    int cnt = 0, failures = 0;
     while (tr.Read(file)) {
       if (ConvertHistogramData(aCache, tr.GetDocument())) {
         tr.GetDocument().Accept(writer);
@@ -137,22 +134,21 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
         aWriter.Write(p, sb.GetString(), sb.GetSize());
       } else {
         cerr << "Conversion failed: " << tr.GetPath() << endl;
-        ++errors;
+        ++failures;
       }
       ++cnt;
     }
     end = chrono::system_clock::now();
     chrono::duration<double> elapsed = end - start;
-    cout << "done processing file:" << aName << " records:" << cnt
-      << " failed conversions:" << errors << " time:"
-      << elapsed.count() << endl;
-    remove(tfn);
+    cout << "done processing file:" << aName.filename() << " success:" << cnt
+      << " failures:" << failures << " time:" << elapsed.count() << endl;
+    remove(aName);
   }
   catch (const exception& e) {
-    cerr << "ProcessFile std exception: " << e.what();
+    cerr << "ProcessFile std exception: " << e.what() << endl;
   }
   catch (...) {
-    cerr << "Process unknown exception";
+    cerr << "ProcessFile unknown exception\n";
   }
 }
 
@@ -191,21 +187,36 @@ int main(int argc, char** argv)
       return EXIT_FAILURE;
     }
     int watch = inotify_add_watch(notify, config.mInputDirectory.c_str(),
-                                  IN_CLOSE_WRITE);
+                                  IN_CLOSE_WRITE | IN_MOVED_TO);
     int bytesRead;
     char buf[kMaxEventSize];
     while (!gStop) {
+      fs::path fn;
+      for (fs::directory_iterator it(config.mInputDirectory);
+           it != fs::directory_iterator(); ++it) {
+        if (is_regular_file(*it)) {
+          fn = *it;
+          break;
+        }
+      }
+
+      if (!fn.empty()) {
+        try {
+          fs::path tfn = fs::temp_directory_path() / fn.filename();
+          rename(fn, tfn);
+          ProcessFile(tfn, schema, cache, writer);
+        }
+        catch (const exception& e) {
+          cerr << "Rename failed:" << fn.filename()
+            << ", someone beat us to it\n";
+        }
+        continue;
+      }
+
+      // block waiting for a new file
       bytesRead = read(notify, buf, kMaxEventSize);
       if (bytesRead < 0) break;
-
-      int i = 0;
-      while (i < bytesRead) {
-        inotify_event* event = reinterpret_cast<inotify_event*>(&buf[i]);
-        if (event->len) { // event->mask & IN_CLOSE_WRITE
-          ProcessFile(config, event->name, schema, cache, writer);
-        }
-        i += sizeof(struct inotify_event) + event->len;
-      }
+      // discard the event, it was just needed to trigger the scan
     }
     inotify_rm_watch(notify, watch);
     close(notify);
