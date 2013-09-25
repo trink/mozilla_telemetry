@@ -84,7 +84,7 @@ bool ConvertHistogramData(HistogramCache& aCache, rapidjson::Document& aDoc)
 ////////////////////////////////////////////////////////////////////////////////
 bool RewriteValues(const HistogramDefinition* aDef,
                    const rapidjson::Value& aData,
-                   std::vector<double>& aRewrite)
+                   std::vector<int32_t>& aRewrite)
 {
   const rapidjson::Value& values = aData["values"];
   if (!values.IsObject()) {
@@ -134,7 +134,7 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
       if (hd) {
         int bucketCount = hd->GetBucketCount();
         int arraySize = bucketCount + kExtraBucketsSize;
-        vector<double> rewrite(arraySize);
+        vector<int32_t> rewrite(arraySize);
         result = RewriteValues(hd, it->value, rewrite);
         if (result) {
           // append the summary data at the end of the array

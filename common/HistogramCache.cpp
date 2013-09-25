@@ -20,14 +20,14 @@ namespace mozilla {
 namespace telemetry {
 
 ////////////////////////////////////////////////////////////////////////////////
-HistogramCache::HistogramCache(const std::string& aCacheHost)
+HistogramCache::HistogramCache(const std::string& aHistogramServer)
 {
-  size_t pos = aCacheHost.find(':');
-  mCacheHost = aCacheHost.substr(0, pos);
+  size_t pos = aHistogramServer.find(':');
+  mHistogramServer = aHistogramServer.substr(0, pos);
   if (pos != string::npos) {
-    mCachePort = aCacheHost.substr(pos + 1);
+    mHistogramServerPort = aHistogramServer.substr(pos + 1);
   } else {
-    mCachePort = "http";
+    mHistogramServerPort = "http";
   }
 }
 
@@ -45,7 +45,7 @@ HistogramCache::FindHistogram(const std::string& aRevisionKey)
     h = it->second;
   } else {
     try {
-      h = LoadHistogram(aRevisionKey); 
+      h = LoadHistogram(aRevisionKey);
     }
     catch (const exception& e) {
       cerr << "LoadHistogram - " << e.what() << endl;
@@ -65,7 +65,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
 
   // Get a list of endpoints corresponding to the server name.
   tcp::resolver resolver(io_service);
-  tcp::resolver::query query(mCacheHost, mCachePort);
+  tcp::resolver::query query(mHistogramServer, mHistogramServerPort);
   tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
 
   // Try each endpoint until we successfully establish a connection.
@@ -79,7 +79,8 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
   std::ostream request_stream(&request);
   request_stream << "GET " << "/histogram_buckets?revision=" << aRevisionKey
     << " HTTP/1.0\r\n";
-  request_stream << "Host: " << mCacheHost << "\r\n";
+  request_stream << "Host: " << mHistogramServer << ":" << mHistogramServerPort
+    << "\r\n";
   request_stream << "Accept: */*\r\n";
   request_stream << "Connection: close\r\n\r\n";
 
@@ -107,7 +108,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
 
   // Read the response headers, which are terminated by a blank line.
   boost::asio::read_until(socket, response, "\r\n\r\n");
-  
+
   // Process the response headers.
   std::string header;
   while (std::getline(response_stream, header) && header != "\r");

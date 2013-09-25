@@ -33,7 +33,7 @@ struct ConvertConfig
 {
   fs::path    mInputDirectory;
   fs::path    mTelemetrySchema;
-  std::string mCacheHost;
+  std::string mHistogramServer;
   fs::path    mStoragePath;
   fs::path    mLogPath;
   fs::path    mUploadPath;
@@ -73,11 +73,11 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
   }
   aConfig.mTelemetrySchema = ts.GetString();
 
-  rapidjson::Value& ch = doc["cache_host"];
-  if (!ch.IsString()) {
-    throw runtime_error("cache_host not specified");
+  rapidjson::Value& hs = doc["histogram_server"];
+  if (!hs.IsString()) {
+    throw runtime_error("histogram_server not specified");
   }
-  aConfig.mCacheHost = ch.GetString();
+  aConfig.mHistogramServer = hs.GetString();
 
   rapidjson::Value& sp = doc["storage_path"];
   if (!sp.IsString()) {
@@ -180,7 +180,7 @@ int main(int argc, char** argv)
   try {
     ConvertConfig config;
     read_config(argv[1], config);
-    mt::HistogramCache cache(config.mCacheHost);
+    mt::HistogramCache cache(config.mHistogramServer);
     mt::TelemetrySchema schema(config.mTelemetrySchema);
     mt::RecordWriter writer(config.mStoragePath, config.mUploadPath,
                             config.mMaxUncompressed, config.mMemoryConstraint,

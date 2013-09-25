@@ -26,7 +26,7 @@ namespace telemetry {
 class HistogramCache
 {
 public:
-  HistogramCache(const std::string& aCacheURL);
+  HistogramCache(const std::string& aHistogramServer);
 
   /**
    * Retrieves the requested histogram revision from cache.  If not cached it 
@@ -49,8 +49,8 @@ private:
    */
   std::shared_ptr<Histogram> LoadHistogram(const std::string &aRevisionKey);
 
-  std::string mCacheHost;
-  std::string mCachePort;
+  std::string mHistogramServer;
+  std::string mHistogramServerPort;
 
   /// Cache of histogram schema keyed by MD5
   std::unordered_map<std::string, std::shared_ptr<Histogram>> mCache;
