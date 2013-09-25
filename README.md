@@ -54,25 +54,27 @@ Setting up/running the histogram server
 
 Running the converter
 ====
-<in the release directory>
+*in the release directory*
 
     mkdir input
     ./convert ..lconvert.json
 
-<from another shell, in the release directory>
+*from another shell, in the release directory*
 
     cp ../common/test/data/telemetry1.log input/
 
 Without the histogram server running it will produce something like this:
-processing file:telemetry1.log
-LoadHistogram - connect: Connection refused
-ConvertHistogramData - histogram not found: http://hg.mozilla.org/releases/mozilla-release/rev/a55c55edf302
-Conversion failed: 17caa68c-25f5-450a-9cce-7d31318846d8/idle-daily/Firefox/23.0.1/release/20130814063812
-done processing file:telemetry1.log records:1 failed conversions:1 0.002733
+
+    processing file:telemetry1.log
+    LoadHistogram - connect: Connection refused
+    ConvertHistogramData - histogram not found: http://hg.mozilla.org/releases/mozilla-release/rev/a55c55edf302
+    Conversion failed: 17caa68c-25f5-450a-9cce-7d31318846d8/idle-daily/Firefox/23.0.1/release/20130814063812
+    done processing file:telemetry1.log records:1 failed conversions:1 0.002733
 
 With the histogram server running:
-processing file:telemetry1.log
-done processing file:telemetry1.log records:1 failed conversions:0 0.010078
+
+    processing file:telemetry1.log
+    done processing file:telemetry1.log records:1 failed conversions:0 0.010078
 
 Ubuntu Notes
 ====
