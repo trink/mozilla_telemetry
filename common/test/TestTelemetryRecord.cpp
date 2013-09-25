@@ -13,7 +13,6 @@
 #include <fstream>
 #include <sstream>
 
-#include <rapidjson/filestream.h>
 #include <rapidjson/writer.h>
 
 #include <iostream>

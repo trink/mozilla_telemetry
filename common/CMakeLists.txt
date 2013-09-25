@@ -12,7 +12,7 @@ TelemetrySchema.cpp
 RecordWriter.cpp)
 
 add_library(telemetry STATIC ${TELEMETRY_SRC})
-add_dependencies(telemetry rapidjson-0_11)
+add_dependencies(telemetry rapidjson)
 target_link_libraries(telemetry ${Boost_LIBRARIES} ${ZLIB_LIBRARIES} ${OPENSSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
 configure_file(TelemetryConstants.in.cpp ${CMAKE_CURRENT_BINARY_DIR}/TelemetryConstants.cpp)

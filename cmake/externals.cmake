@@ -6,15 +6,15 @@ include(ExternalProject)
 set_property(DIRECTORY PROPERTY EP_BASE "${CMAKE_BINARY_DIR}/ep_base")
 
 externalproject_add(
-    rapidjson-0_11
-    URL http://rapidjson.googlecode.com/files/rapidjson-0.11.zip
-    URL_MD5 96a4b1b57ece8bc6a807ceb14ccaaf94
-    CONFIGURE_COMMAND ""
+    rapidjson
+    SVN_REPOSITORY http://rapidjson.googlecode.com/svn/trunk/
     BUILD_COMMAND ""
+    CONFIGURE_COMMAND ""
     INSTALL_COMMAND ""
+    UPDATE_COMMAND "" # comment out to enable updates
 )
 
-set(RAPIDJSON_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/ep_base/Source/rapidjson-0_11/include")
+set(RAPIDJSON_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/ep_base/Source/rapidjson/include")
 include_directories(${RAPIDJSON_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${RAPIDJSON_INCLUDE_DIRS}")
 

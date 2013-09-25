@@ -12,7 +12,6 @@
 #include <boost/xpressive/xpressive.hpp>
 #include <fstream>
 #include <rapidjson/document.h>
-#include <rapidjson/filestream.h>
 #include <sstream>
 
 using namespace std;
@@ -69,22 +68,20 @@ TelemetrySchema::TelemetryDimension::TelemetryDimension(const rapidjson::Value& 
 ////////////////////////////////////////////////////////////////////////////////
 TelemetrySchema::TelemetrySchema(const boost::filesystem::path& fileName)
 {
-  FILE* fh = fopen(fileName.c_str(), "r");
-  if (!fh) {
+  ifstream ifs(fileName.c_str());
+  if (!ifs) {
     stringstream ss;
     ss << "file open failed: " << fileName.string();
     throw runtime_error(ss.str());
   }
-  rapidjson::FileStream is(fh);
+  string json((istream_iterator<char>(ifs)), istream_iterator<char>());
 
   rapidjson::Document doc;
-  if (doc.ParseStream<0>(is).HasParseError()) {
-    fclose(fh);
+  if (doc.Parse<0>(json.c_str()).HasParseError()) {
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
-  fclose(fh);
 
   const rapidjson::Value& version = doc["version"];
   if (!version.IsInt()) {

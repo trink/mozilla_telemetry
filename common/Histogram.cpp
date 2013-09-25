@@ -13,7 +13,6 @@
 #include <exception>
 #include <fstream>
 #include <rapidjson/document.h>
-#include <rapidjson/filestream.h>
 
 using namespace std;
 namespace mozilla {
@@ -22,7 +21,7 @@ namespace telemetry {
 ////////////////////////////////////////////////////////////////////////////////
 HistogramDefinition::HistogramDefinition(const rapidjson::Value& aValue)
 {
-  const rapidjson::Value& k = aValue["kind"];
+  const rapidjson::Value& k = aValue["kind"]; 
   if (!k.IsString()) {
     throw runtime_error("missing kind element");
   }

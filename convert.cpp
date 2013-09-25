@@ -19,7 +19,6 @@
 #include <fstream>
 #include <iostream>
 #include <rapidjson/document.h>
-#include <rapidjson/filestream.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <sstream>
@@ -44,22 +43,20 @@ struct ConvertConfig
 
 void read_config(const char* aFile, ConvertConfig& aConfig)
 {
-  FILE* fh = fopen(aFile, "r");
-  if (!fh) {
+  ifstream ifs(aFile);
+  if (!ifs) {
     stringstream ss;
     ss << "file open failed: " << aFile;
     throw runtime_error(ss.str());
   }
-  rapidjson::FileStream is(fh);
+  string json((istream_iterator<char>(ifs)), istream_iterator<char>());
 
   rapidjson::Document doc;
-  if (doc.ParseStream<0>(is).HasParseError()) {
-    fclose(fh);
+  if (doc.Parse<0>(json.c_str()).HasParseError()) {
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
-  fclose(fh);
 
   rapidjson::Value& idir = doc["input_directory"];
   if (!idir.IsString()) {
@@ -130,14 +127,14 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
     start = chrono::system_clock::now();
     ifstream file(tfn.c_str());
     mt::TelemetryRecord tr;
-    rapidjson::StringBuffer sb; 
+    rapidjson::StringBuffer sb;
     rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
     int cnt = 0, errors = 0;
     while (tr.Read(file)) {
       if (ConvertHistogramData(aCache, tr.GetDocument())) {
         tr.GetDocument().Accept(writer);
         boost::filesystem::path p = aSchema.GetDimensionPath(tr.GetDocument());
-        aWriter.Write(p, sb.GetString(), sb.Size());
+        aWriter.Write(p, sb.GetString(), sb.GetSize());
       } else {
         cerr << "Conversion failed: " << tr.GetPath() << endl;
         ++errors;
@@ -146,7 +143,9 @@ void ProcessFile(const ConvertConfig& config, const char* aName,
     }
     end = chrono::system_clock::now();
     chrono::duration<double> elapsed = end - start;
-    cout << "done processing file:" << aName << " records:" << cnt << " failed conversions: " << errors << " " << elapsed.count() << endl;
+    cout << "done processing file:" << aName << " records:" << cnt
+      << " failed conversions:" << errors << " time:"
+      << elapsed.count() << endl;
     remove(tfn);
   }
   catch (const exception& e) {
