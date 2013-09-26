@@ -20,7 +20,7 @@ namespace telemetry {
 
 bool RewriteValues(shared_ptr<HistogramDefinition> aDef,
                    const rapidjson::Value& aData,
-                   vector<double>& aRewrite);
+                   vector<int>& aRewrite);
 
 bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue);
 
@@ -84,7 +84,7 @@ bool ConvertHistogramData(HistogramCache& aCache, rapidjson::Document& aDoc)
 ////////////////////////////////////////////////////////////////////////////////
 bool RewriteValues(const HistogramDefinition* aDef,
                    const rapidjson::Value& aData,
-                   std::vector<double>& aRewrite)
+                   std::vector<int>& aRewrite)
 {
   const rapidjson::Value& values = aData["values"];
   if (!values.IsObject()) {
@@ -114,6 +114,7 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
 {
   rapidjson::Document doc;
   rapidjson::Document::AllocatorType& alloc = doc.GetAllocator();
+  vector<double> summary(kExtraBucketsSize);
   bool result = true;
 
   for (rapidjson::Value::MemberIterator it = aValue.MemberBegin(); result &&
@@ -133,24 +134,28 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
       }
       if (hd) {
         int bucketCount = hd->GetBucketCount();
-        int arraySize = bucketCount + kExtraBucketsSize;
-        vector<double> rewrite(arraySize);
+        vector<int> rewrite(bucketCount);
         result = RewriteValues(hd, it->value, rewrite);
         if (result) {
-          // append the summary data at the end of the array
+          // save off the summary values before rewriting the histogram data
           for (int x = 0; kExtraBuckets[x] != nullptr; ++x) {
             const rapidjson::Value& v = it->value[kExtraBuckets[x]];
             if (v.IsNumber()) {
-              rewrite[bucketCount + x] = v.GetDouble();
+              summary[x] = v.GetDouble();
             } else {
-              rewrite[bucketCount + x] = -1;
+              summary[x] = -1;
             }
           }
           // rewrite the JSON histogram data
           it->value.SetArray();
-          it->value.Reserve(arraySize, alloc);
+          it->value.Reserve(bucketCount + kExtraBucketsSize, alloc);
           auto end = rewrite.end();
           for (auto vit = rewrite.begin(); vit != end; ++vit){
+            it->value.PushBack(*vit, alloc);
+          }
+          // add the summary information
+          auto send = summary.end();
+          for (auto vit = summary.begin(); vit != send; ++vit){
             it->value.PushBack(*vit, alloc);
           }
         }
