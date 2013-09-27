@@ -133,7 +133,7 @@ bool ProcessFile(const boost::filesystem::path& aName,
         boost::filesystem::path p = aSchema.GetDimensionPath(tr.GetDocument());
         aWriter.Write(p, sb.GetString(), sb.GetSize());
       } else {
-        cerr << "Conversion failed: " << tr.GetPath() << endl;
+        // cerr << "Conversion failed: " << tr.GetPath() << endl;
         ++failures;
       }
       ++cnt;
@@ -141,7 +141,8 @@ bool ProcessFile(const boost::filesystem::path& aName,
     end = chrono::system_clock::now();
     chrono::duration<double> elapsed = end - start;
     cout << "done processing file:" << aName.filename() << " success:" << cnt
-      << " failures:" << failures << " time:" << elapsed.count() << endl;
+         << " failures:" << failures << " time:" << elapsed.count() <<  "; out: "
+         << sb.GetSize() / elapsed.count() / 1024 / 1024 << "MB/s" << endl;
   }
   catch (const exception& e) {
     cerr << "ProcessFile std exception: " << e.what() << endl;
