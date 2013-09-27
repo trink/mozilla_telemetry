@@ -114,7 +114,7 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void ProcessFile(const boost::filesystem::path& aName,
+bool ProcessFile(const boost::filesystem::path& aName,
                  const mt::TelemetrySchema& aSchema, mt::HistogramCache& aCache,
                  mt::RecordWriter& aWriter)
 {
@@ -142,14 +142,16 @@ void ProcessFile(const boost::filesystem::path& aName,
     chrono::duration<double> elapsed = end - start;
     cout << "done processing file:" << aName.filename() << " success:" << cnt
       << " failures:" << failures << " time:" << elapsed.count() << endl;
-    remove(aName);
   }
   catch (const exception& e) {
     cerr << "ProcessFile std exception: " << e.what() << endl;
+    return false;
   }
   catch (...) {
     cerr << "ProcessFile unknown exception\n";
+    return false;
   }
+  return true;
 }
 
 static sig_atomic_t gStop = 0;
@@ -163,14 +165,10 @@ const size_t kMaxEventSize = sizeof(struct inotify_event) + FILENAME_MAX + 1;
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
-  if (argc != 2) {
-    cerr << "usage: " << argv[0] << " <json config>\n";
+  if (argc < 2) {
+    cerr << "usage: " << argv[0] << " <json config> <space-separated batch file list or nothing for inotify>\n";
     return EXIT_FAILURE;
   }
-  signal(SIGHUP, shutdown);
-  signal(SIGINT, shutdown);
-  signal(SIGTERM, shutdown);
-  signal(SIGUSR2, shutdown);
 
   try {
     ConvertConfig config;
@@ -180,6 +178,18 @@ int main(int argc, char** argv)
     mt::RecordWriter writer(config.mStoragePath, config.mUploadPath,
                             config.mMaxUncompressed, config.mMemoryConstraint,
                             config.mCompressionPreset);
+
+    for (int i = 2;i < argc;i++) {
+      ProcessFile(argv[i], schema, cache, writer);
+    }
+    // do not move on to inotify mode in batch mode
+    if (argc > 2)
+      exit(0);
+
+    signal(SIGHUP, shutdown);
+    signal(SIGINT, shutdown);
+    signal(SIGTERM, shutdown);
+    signal(SIGUSR2, shutdown);
 
     int notify = inotify_init();
     if (notify < 0) {
@@ -204,7 +214,8 @@ int main(int argc, char** argv)
         try {
           fs::path tfn = fs::temp_directory_path() / fn.filename();
           rename(fn, tfn);
-          ProcessFile(tfn, schema, cache, writer);
+          if (ProcessFile(tfn, schema, cache, writer))
+            remove(tfn);
         }
         catch (const exception& e) {
           cerr << "Rename failed:" << fn.filename()
