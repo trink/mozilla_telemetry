@@ -38,20 +38,37 @@ HistogramCache::FindHistogram(const std::string& aRevisionKey)
   shared_ptr<Histogram> h;
 
   if (aRevisionKey.compare(0, 4, "http") != 0) {
+    ++mMetrics.mInvalidRevisions.mValue;
     return h;
   }
   auto it = mRevisions.find(aRevisionKey);
   if (it != mRevisions.end()) {
+    ++mMetrics.mCacheHits.mValue;
     h = it->second;
   } else {
+    ++mMetrics.mCacheMisses.mValue;
     try {
       h = LoadHistogram(aRevisionKey);
     }
     catch (const exception& e) {
+      ++mMetrics.mConnectionErrors.mValue;
       cerr << "LoadHistogram - " << e.what() << endl;
     }
   }
   return h;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void
+HistogramCache::GetMetrics(message::Message& aMsg)
+{
+  aMsg.clear_fields();
+  ConstructField(aMsg, mMetrics.mConnectionErrors);
+  ConstructField(aMsg, mMetrics.mHTTPErrors);
+  ConstructField(aMsg, mMetrics.mInvalidHistograms);
+  ConstructField(aMsg, mMetrics.mInvalidRevisions);
+  ConstructField(aMsg, mMetrics.mCacheHits);
+  ConstructField(aMsg, mMetrics.mCacheMisses);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,7 +119,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
   std::string status_message;
   std::getline(response_stream, status_message);
   if (!response_stream || http_version.substr(0, 5) != "HTTP/") {
-    cerr << "LoadHistogram - invalid server response\n";
+    ++mMetrics.mHTTPErrors.mValue;
     return shared_ptr<Histogram>();
   }
 
@@ -113,7 +130,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
   std::string header;
   while (std::getline(response_stream, header) && header != "\r");
   if (status_code != 200) {
-    cerr << "LoadHistogram - non 200 response\n";
+    ++mMetrics.mHTTPErrors.mValue;
     shared_ptr<Histogram> h;
     mRevisions.insert(make_pair(aRevisionKey, h)); // prevent retries
     return h;
@@ -142,7 +159,9 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
     return p.first->second;
   }
   catch (exception &e){
-    cerr << "LoadHistogram - bad histogram specification\n" << oss.str();
+    ++mMetrics.mInvalidHistograms.mValue;
+    cerr << "LoadHistogram - invalid histogram specification: " << aRevisionKey
+      << endl;
   }
   return shared_ptr<Histogram>();
 }

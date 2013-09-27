@@ -11,8 +11,12 @@
 #include "TelemetryRecord.h"
 #include "TelemetrySchema.h"
 #include "RecordWriter.h"
+#include "Metric.h"
+#include "message.pb.h"
 
 #include <boost/filesystem.hpp>
+#include <boost/uuid/uuid.hpp>
+#include <boost/uuid/uuid_generators.hpp>
 #include <chrono>
 #include <csignal>
 #include <exception>
@@ -41,7 +45,9 @@ struct ConvertConfig
   int         mCompressionPreset;
 };
 
-void read_config(const char* aFile, ConvertConfig& aConfig)
+
+///////////////////////////////////////////////////////////////////////////////
+void ReadConfig(const char* aFile, ConvertConfig& aConfig)
 {
   ifstream ifs(aFile);
   if (!ifs) {
@@ -63,6 +69,9 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
     throw runtime_error("input_directory not specified");
   }
   aConfig.mInputDirectory = idir.GetString();
+  if (!exists(aConfig.mInputDirectory)) {
+    create_directories(aConfig.mInputDirectory);
+  }
 
   rapidjson::Value& ts = doc["telemetry_schema"];
   if (!ts.IsString()) {
@@ -81,18 +90,27 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
     throw runtime_error("storage_path not specified");
   }
   aConfig.mStoragePath = sp.GetString();
+  if (!exists(aConfig.mStoragePath)) {
+    create_directories(aConfig.mStoragePath);
+  }
 
   rapidjson::Value& lp = doc["log_path"];
   if (!lp.IsString()) {
     throw runtime_error("log_path not specified");
   }
   aConfig.mLogPath = lp.GetString();
+  if (!exists(aConfig.mLogPath)) {
+    create_directories(aConfig.mLogPath);
+  }
 
   rapidjson::Value& up = doc["upload_path"];
   if (!up.IsString()) {
     throw runtime_error("upload_path not specified");
   }
   aConfig.mUploadPath = up.GetString();
+  if (!exists(aConfig.mUploadPath)) {
+    create_directories(aConfig.mUploadPath);
+  }
 
   rapidjson::Value& mu = doc["max_uncompressed"];
   if (!mu.IsUint64()) {
@@ -140,8 +158,14 @@ void ProcessFile(const boost::filesystem::path& aName,
     }
     end = chrono::system_clock::now();
     chrono::duration<double> elapsed = end - start;
+    double throughput = 0;
+    double duration = elapsed.count();
+    if (duration > 0) {
+      throughput = file_size(aName) / 1024 / 1024 / duration;
+    }
     cout << "done processing file:" << aName.filename() << " success:" << cnt
-      << " failures:" << failures << " time:" << elapsed.count() << endl;
+      << " failures:" << failures << " time:" << duration
+      << " throughput MiB/s:" << throughput << endl;
     remove(aName);
   }
   catch (const exception& e) {
@@ -154,15 +178,35 @@ void ProcessFile(const boost::filesystem::path& aName,
 
 static sig_atomic_t gStop = 0;
 ////////////////////////////////////////////////////////////////////////////////
-void shutdown(int)
+void shutdown(int sig)
 {
   gStop = 1;
+  signal(sig, SIG_DFL);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+ofstream& RollLog(ofstream& aOutput, const ConvertConfig& config)
+{
+  bool needsRolling = false;
+  if (!aOutput || !aOutput.is_open() || needsRolling) {
+    if (aOutput.is_open()) {
+      aOutput.close();
+    }
+    // todo create time based name i.e. convert-20130927.log
+    fs::path fn(config.mLogPath / "convert.log");
+    aOutput.open(fn.c_str(), ios::binary | ios::app);
+  }
+  return aOutput;
 }
 
 const size_t kMaxEventSize = sizeof(struct inotify_event) + FILENAME_MAX + 1;
 ///////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
+  // Verify that the version of the library that we linked against is
+  // compatible with the version of the headers we compiled against.
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
+
   if (argc != 2) {
     cerr << "usage: " << argv[0] << " <json config>\n";
     return EXIT_FAILURE;
@@ -174,12 +218,18 @@ int main(int argc, char** argv)
 
   try {
     ConvertConfig config;
-    read_config(argv[1], config);
+    ReadConfig(argv[1], config);
     mt::HistogramCache cache(config.mHistogramServer);
     mt::TelemetrySchema schema(config.mTelemetrySchema);
     mt::RecordWriter writer(config.mStoragePath, config.mUploadPath,
                             config.mMaxUncompressed, config.mMemoryConstraint,
                             config.mCompressionPreset);
+
+    message::Message metrics;
+    metrics.set_type("telemetry");
+    metrics.set_logger("telemetry_converter");
+    metrics.set_pid(0);
+    metrics.set_hostname("todo");
 
     int notify = inotify_init();
     if (notify < 0) {
@@ -190,6 +240,7 @@ int main(int argc, char** argv)
                                   IN_CLOSE_WRITE | IN_MOVED_TO);
     int bytesRead;
     char buf[kMaxEventSize];
+    ofstream ofs;
     while (!gStop) {
       fs::path fn;
       for (fs::directory_iterator it(config.mInputDirectory);
@@ -205,6 +256,12 @@ int main(int argc, char** argv)
           fs::path tfn = fs::temp_directory_path() / fn.filename();
           rename(fn, tfn);
           ProcessFile(tfn, schema, cache, writer);
+          boost::uuids::uuid u = boost::uuids::random_generator()();
+          metrics.set_uuid(&u, u.size());
+          metrics.set_timestamp(0);
+          cache.GetMetrics(metrics);
+          RollLog(ofs, config);
+          mt::WriteMessage(ofs, metrics);
         }
         catch (const exception& e) {
           cerr << "Rename failed:" << fn.filename()
@@ -229,6 +286,9 @@ int main(int argc, char** argv)
     cerr << "unknown exception";
     return EXIT_FAILURE;
   }
+  // Optional:  Delete all global objects allocated by libprotobuf.
+  google::protobuf::ShutdownProtobufLibrary();
+
 
   return EXIT_SUCCESS;
 }

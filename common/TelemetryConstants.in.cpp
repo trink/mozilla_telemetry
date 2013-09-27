@@ -22,6 +22,7 @@ const size_t kMaxTelemetryPath = 10 * 1024;
 const size_t kMaxTelemetryData = 200 * 1024;
 
 const char kRecordSeparator = 0x1e;
+const char kUnitSeparator = 0x1f;
 
 const size_t kExtraBucketsSize = 5;
 const char* kExtraBuckets[] = { "sum", "log_sum", "log_sum_squares",

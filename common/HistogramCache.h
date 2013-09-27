@@ -13,11 +13,13 @@ and loads the histogram file from disk and adds it to the cache.
 #define mozilla_telemetry_Histogram_Cache_h
 
 #include "Histogram.h"
+#include "Metric.h"
 
 #include <boost/filesystem.hpp>
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 #include <string>
 
 namespace mozilla {
@@ -37,9 +39,36 @@ public:
    * 
    * @return const Histogram* nullptr if load fails
    */
-  std::shared_ptr<Histogram> FindHistogram(const std::string &aRevisionKey);
+  std::shared_ptr<Histogram> FindHistogram(const std::string& aRevisionKey);
+
+  /**
+   * Rolls up the internal metric data into the fields element of the provided 
+   * message. The metrics are reset after each call. 
+   * 
+   * @param aMsg The fields element will be cleared and then populated with the 
+   *             HistogramCache metrics.
+   */
+  void GetMetrics(message::Message& aMsg);
 
 private:
+  struct Metrics
+  {
+    Metrics() :
+      mConnectionErrors("Connection Errors"),
+      mHTTPErrors("HTTP Errors"),
+      mInvalidHistograms("Invalid Histograms"),
+      mInvalidRevisions("Invalid Revisions"),
+      mCacheHits("Cache Hits"),
+      mCacheMisses("Cache Misses") { }
+
+    Metric mConnectionErrors;
+    Metric mHTTPErrors;
+    Metric mInvalidHistograms;
+    Metric mInvalidRevisions;
+    Metric mCacheHits;
+    Metric mCacheMisses;
+  };
+
   /**
    * Retrieves the requested histogram revision from the histogram server.
    * 
@@ -47,16 +76,18 @@ private:
    * 
    * @return const Histogram* nullptr if load fails
    */
-  std::shared_ptr<Histogram> LoadHistogram(const std::string &aRevisionKey);
+  std::shared_ptr<Histogram> LoadHistogram(const std::string& aRevisionKey);
 
   std::string mHistogramServer;
   std::string mHistogramServerPort;
 
   /// Cache of histogram schema keyed by MD5
-  std::unordered_map<std::string, std::shared_ptr<Histogram>> mCache;
+  std::unordered_map<std::string, std::shared_ptr<Histogram> > mCache;
 
   /// Cache of histogram schema keyed by revision
   std::map<std::string, std::shared_ptr<Histogram>> mRevisions;
+
+  Metrics mMetrics;
 };
 
 }
