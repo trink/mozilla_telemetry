@@ -9,6 +9,7 @@
 #ifndef mozilla_telemetry_Telemetry_Record_h
 #define mozilla_telemetry_Telemetry_Record_h
 
+#include "Common.h"
 #include "TelemetryConstants.h"
 
 #include <boost/utility.hpp>
@@ -35,7 +36,7 @@ public:
 
   const char* GetPath();
   uint64_t GetTimestamp();
-  rapidjson::Document& GetDocument();
+  RapidjsonDocument& GetDocument();
 
 private:
   bool FindRecord(std::istream& aInput);
@@ -43,7 +44,7 @@ private:
   bool ProcessRecord();
   int Inflate();
 
-  rapidjson::Document mDocument;
+  RapidjsonDocument mDocument;
 
   uint16_t  mPathLength;
   size_t    mPathSize;

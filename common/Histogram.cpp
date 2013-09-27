@@ -19,38 +19,38 @@ namespace mozilla {
 namespace telemetry {
 
 ////////////////////////////////////////////////////////////////////////////////
-HistogramDefinition::HistogramDefinition(const rapidjson::Value& aValue)
+HistogramDefinition::HistogramDefinition(const RapidjsonValue& aValue)
 {
-  const rapidjson::Value& k = aValue["kind"]; 
+  const RapidjsonValue& k = aValue["kind"]; 
   if (!k.IsString()) {
     throw runtime_error("missing kind element");
   }
   mKind = boost::lexical_cast<int>(k.GetString());
 
-  const rapidjson::Value& mn = aValue["min"];
+  const RapidjsonValue& mn = aValue["min"];
   if (!mn.IsInt()) {
     throw runtime_error("missing min element");
   }
   mMin = mn.GetInt();
 
-  const rapidjson::Value& mx = aValue["max"];
+  const RapidjsonValue& mx = aValue["max"];
   if (!mx.IsInt()) {
     throw runtime_error("missing max element");
   }
   mMax = mx.GetInt();
 
-  const rapidjson::Value& b = aValue["bucket_count"];
+  const RapidjsonValue& b = aValue["bucket_count"];
   if (!b.IsInt()) {
     throw runtime_error("missing bucket_count element");
   }
   mBucketCount = b.GetInt();
 
-  const rapidjson::Value& a = aValue["buckets"];
+  const RapidjsonValue& a = aValue["buckets"];
   if (!a.IsArray()) {
     throw runtime_error("missing bucket array element");
   }
   int index = 0;
-  for (rapidjson::Value::ConstValueIterator it = a.Begin(); it != a.End();
+  for (RapidjsonValue::ConstValueIterator it = a.Begin(); it != a.End();
        ++it, ++index) {
     if (!it->IsInt()) {
       throw runtime_error("buckets array must contain integer elements");
@@ -79,7 +79,7 @@ HistogramDefinition::GetBucketIndex(long aLowerBound) const
 ////////////////////////////////////////////////////////////////////////////////
 Histogram::Histogram(const std::string& aJSON)
 {
-  rapidjson::Document doc;
+  RapidjsonDocument doc;
   if (doc.Parse<0>(aJSON.c_str()).HasParseError()) {
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
@@ -116,13 +116,13 @@ Histogram::GetDefinition(const char* aName) const
 /// Private Member Functions
 ////////////////////////////////////////////////////////////////////////////////
 void
-Histogram::LoadDefinitions(const rapidjson::Document& aDoc)
+Histogram::LoadDefinitions(const RapidjsonDocument& aDoc)
 {
-  const rapidjson::Value& histograms = aDoc["histograms"];
+  const RapidjsonValue& histograms = aDoc["histograms"];
   if (!histograms.IsObject()) {
     throw runtime_error("histograms element must be an object");
   }
-  for (rapidjson::Value::ConstMemberIterator it = histograms.MemberBegin();
+  for (RapidjsonValue::ConstMemberIterator it = histograms.MemberBegin();
        it != histograms.MemberEnd(); ++it) {
     const char* name = it->name.GetString();
     if (!it->value.IsObject()) {

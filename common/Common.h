@@ -4,21 +4,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/// Histogram data converter. @file
-
-#ifndef mozilla_telemetry_Histogram_Converter_h
-#define mozilla_telemetry_Histogram_Converter_h
-
-#include "HistogramCache.h"
+#ifndef mozilla_common_h
+#define mozilla_common_h
 
 #include <rapidjson/document.h>
 
-namespace mozilla {
-namespace telemetry {
+typedef rapidjson::GenericDocument<rapidjson::UTF8<>, rapidjson::CrtAllocator> RapidjsonDocument;
+typedef rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>  RapidjsonValue;
 
-bool ConvertHistogramData(HistogramCache& aCache, RapidjsonDocument& aDoc);
-
-}
-}
-
-#endif // mozilla_telemetry_Histogram_Converter_h
+#endif

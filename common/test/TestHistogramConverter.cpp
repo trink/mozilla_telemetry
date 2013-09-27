@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(test_converter)
 
   const char* conv = "{\"ver\":2,\"histograms\":{\"A11Y_IATABLE_USAGE_FLAG\":[1,0,0,0,-1,-1,1.2342,0]},\"info\":{\"revision\":\"http://hg.mozilla.org/releases/mozilla-release/rev/a55c55edf302\"}}";
 
-  rapidjson::Document d;
+  RapidjsonDocument d;
   d.Parse<0>(hist);
   BOOST_REQUIRE(!d.HasParseError());
 

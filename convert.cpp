@@ -51,62 +51,62 @@ void read_config(const char* aFile, ConvertConfig& aConfig)
   }
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
 
-  rapidjson::Document doc;
+  RapidjsonDocument doc;
   if (doc.Parse<0>(json.c_str()).HasParseError()) {
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
 
-  rapidjson::Value& idir = doc["input_directory"];
+  RapidjsonValue& idir = doc["input_directory"];
   if (!idir.IsString()) {
     throw runtime_error("input_directory not specified");
   }
   aConfig.mInputDirectory = idir.GetString();
 
-  rapidjson::Value& ts = doc["telemetry_schema"];
+  RapidjsonValue& ts = doc["telemetry_schema"];
   if (!ts.IsString()) {
     throw runtime_error("telemetry_schema not specified");
   }
   aConfig.mTelemetrySchema = ts.GetString();
 
-  rapidjson::Value& hs = doc["histogram_server"];
+  RapidjsonValue& hs = doc["histogram_server"];
   if (!hs.IsString()) {
     throw runtime_error("histogram_server not specified");
   }
   aConfig.mHistogramServer = hs.GetString();
 
-  rapidjson::Value& sp = doc["storage_path"];
+  RapidjsonValue& sp = doc["storage_path"];
   if (!sp.IsString()) {
     throw runtime_error("storage_path not specified");
   }
   aConfig.mStoragePath = sp.GetString();
 
-  rapidjson::Value& lp = doc["log_path"];
+  RapidjsonValue& lp = doc["log_path"];
   if (!lp.IsString()) {
     throw runtime_error("log_path not specified");
   }
   aConfig.mLogPath = lp.GetString();
 
-  rapidjson::Value& up = doc["upload_path"];
+  RapidjsonValue& up = doc["upload_path"];
   if (!up.IsString()) {
     throw runtime_error("upload_path not specified");
   }
   aConfig.mUploadPath = up.GetString();
 
-  rapidjson::Value& mu = doc["max_uncompressed"];
+  RapidjsonValue& mu = doc["max_uncompressed"];
   if (!mu.IsUint64()) {
     throw runtime_error("max_uncompressed not specified");
   }
   aConfig.mMaxUncompressed = mu.GetUint64();
 
-  rapidjson::Value& mc = doc["memory_constraint"];
+  RapidjsonValue& mc = doc["memory_constraint"];
   if (!mc.IsUint()) {
     throw runtime_error("memory_constraint not specified");
   }
   aConfig.mMemoryConstraint = mc.GetUint();
 
-  rapidjson::Value& cpr = doc["compression_preset"];
+  RapidjsonValue& cpr = doc["compression_preset"];
   if (!cpr.IsInt()) {
     throw runtime_error("compression_preset not specified");
   }
