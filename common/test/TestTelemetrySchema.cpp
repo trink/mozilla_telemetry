@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(test_load)
   string fn(kDataPath + "telemetry_schema.json");
   try {
     TelemetrySchema t(fn);    
-    rapidjson::Document d;
+    RapidjsonDocument d;
     d.Parse<0>(info);
     boost::filesystem::path p = t.GetDimensionPath(d);
     BOOST_REQUIRE_EQUAL("idle_daily/Firefox/release/23.0.1/20130814063812/other", p);

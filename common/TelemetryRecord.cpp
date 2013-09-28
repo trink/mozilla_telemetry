@@ -83,7 +83,7 @@ uint64_t TelemetryRecord::GetTimestamp()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-rapidjson::Document& TelemetryRecord::GetDocument()
+RapidjsonDocument& TelemetryRecord::GetDocument()
 {
   return mDocument;
 }

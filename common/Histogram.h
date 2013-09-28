@@ -11,6 +11,8 @@ Accessor and utility functions functions for the Histogram.json data structure.
 #ifndef mozilla_telemetry_Histogram_h
 #define mozilla_telemetry_Histogram_h
 
+#include "Common.h"
+
 #include <boost/functional/hash_fwd.hpp>
 #include <boost/utility.hpp>
 #include <functional>
@@ -31,7 +33,7 @@ class HistogramDefinition : boost::noncopyable
 {
 public:
 
-  HistogramDefinition(const rapidjson::Value& aValue);
+  HistogramDefinition(const RapidjsonValue& aValue);
 
   /**
    * Returns the index of the associated bucket based on the bucket's lower 
@@ -120,7 +122,7 @@ private:
    * @param aValue "histograms" object from the JSON document.
    * 
    */
-  void LoadDefinitions(const rapidjson::Document& aDoc);
+  void LoadDefinitions(const RapidjsonDocument& aDoc);
 
   std::unordered_map<char*, HistogramDefinition*, Cstring_hash,
                      Cstring_equal_to> mDefinitions;

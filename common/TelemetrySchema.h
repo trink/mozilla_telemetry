@@ -13,6 +13,8 @@ structure.
 #ifndef mozilla_telemetry_Telemetry_Schema_h
 #define mozilla_telemetry_Telemetry_Schema_h
 
+#include "Common.h"
+
 #include <boost/filesystem.hpp>
 #include <memory>
 #include <rapidjson/document.h>
@@ -42,13 +44,13 @@ public:
    * 
    * @return boost::filesystem::path 
    */
-  boost::filesystem::path GetDimensionPath(const rapidjson::Document& aDoc) const;
+  boost::filesystem::path GetDimensionPath(const RapidjsonDocument& aDoc) const;
 
 private:
 
   struct TelemetryDimension
   {
-    TelemetryDimension(const rapidjson::Value& aValue);
+    TelemetryDimension(const RapidjsonValue& aValue);
 
     enum Type {
       kValue,
@@ -70,7 +72,7 @@ private:
    * @param aValue "histograms" object from the JSON document.
    * 
    */
-  void LoadDimensions(const rapidjson::Document& aDoc);
+  void LoadDimensions(const RapidjsonDocument& aDoc);
 
   static std::string SafePath(const std::string& s);
 

@@ -57,14 +57,14 @@ void ReadConfig(const char* aFile, ConvertConfig& aConfig)
   }
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
 
-  rapidjson::Document doc;
+  RapidjsonDocument doc;
   if (doc.Parse<0>(json.c_str()).HasParseError()) {
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
 
-  rapidjson::Value& idir = doc["input_directory"];
+  RapidjsonValue& idir = doc["input_directory"];
   if (!idir.IsString()) {
     throw runtime_error("input_directory not specified");
   }
@@ -73,19 +73,19 @@ void ReadConfig(const char* aFile, ConvertConfig& aConfig)
     create_directories(aConfig.mInputDirectory);
   }
 
-  rapidjson::Value& ts = doc["telemetry_schema"];
+  RapidjsonValue& ts = doc["telemetry_schema"];
   if (!ts.IsString()) {
     throw runtime_error("telemetry_schema not specified");
   }
   aConfig.mTelemetrySchema = ts.GetString();
 
-  rapidjson::Value& hs = doc["histogram_server"];
+  RapidjsonValue& hs = doc["histogram_server"];
   if (!hs.IsString()) {
     throw runtime_error("histogram_server not specified");
   }
   aConfig.mHistogramServer = hs.GetString();
 
-  rapidjson::Value& sp = doc["storage_path"];
+  RapidjsonValue& sp = doc["storage_path"];
   if (!sp.IsString()) {
     throw runtime_error("storage_path not specified");
   }
@@ -94,7 +94,7 @@ void ReadConfig(const char* aFile, ConvertConfig& aConfig)
     create_directories(aConfig.mStoragePath);
   }
 
-  rapidjson::Value& lp = doc["log_path"];
+  RapidjsonValue& lp = doc["log_path"];
   if (!lp.IsString()) {
     throw runtime_error("log_path not specified");
   }
@@ -103,7 +103,7 @@ void ReadConfig(const char* aFile, ConvertConfig& aConfig)
     create_directories(aConfig.mLogPath);
   }
 
-  rapidjson::Value& up = doc["upload_path"];
+  RapidjsonValue& up = doc["upload_path"];
   if (!up.IsString()) {
     throw runtime_error("upload_path not specified");
   }
@@ -112,19 +112,19 @@ void ReadConfig(const char* aFile, ConvertConfig& aConfig)
     create_directories(aConfig.mUploadPath);
   }
 
-  rapidjson::Value& mu = doc["max_uncompressed"];
+  RapidjsonValue& mu = doc["max_uncompressed"];
   if (!mu.IsUint64()) {
     throw runtime_error("max_uncompressed not specified");
   }
   aConfig.mMaxUncompressed = mu.GetUint64();
 
-  rapidjson::Value& mc = doc["memory_constraint"];
+  RapidjsonValue& mc = doc["memory_constraint"];
   if (!mc.IsUint()) {
     throw runtime_error("memory_constraint not specified");
   }
   aConfig.mMemoryConstraint = mc.GetUint();
 
-  rapidjson::Value& cpr = doc["compression_preset"];
+  RapidjsonValue& cpr = doc["compression_preset"];
   if (!cpr.IsInt()) {
     throw runtime_error("compression_preset not specified");
   }
@@ -132,7 +132,7 @@ void ReadConfig(const char* aFile, ConvertConfig& aConfig)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void ProcessFile(const boost::filesystem::path& aName,
+bool ProcessFile(const boost::filesystem::path& aName,
                  const mt::TelemetrySchema& aSchema, mt::HistogramCache& aCache,
                  mt::RecordWriter& aWriter)
 {
@@ -151,7 +151,7 @@ void ProcessFile(const boost::filesystem::path& aName,
         boost::filesystem::path p = aSchema.GetDimensionPath(tr.GetDocument());
         aWriter.Write(p, sb.GetString(), sb.GetSize());
       } else {
-        cerr << "Conversion failed: " << tr.GetPath() << endl;
+        // cerr << "Conversion failed: " << tr.GetPath() << endl;
         ++failures;
       }
       ++cnt;
@@ -166,14 +166,16 @@ void ProcessFile(const boost::filesystem::path& aName,
     cout << "done processing file:" << aName.filename() << " success:" << cnt
       << " failures:" << failures << " time:" << duration
       << " throughput MiB/s:" << throughput << endl;
-    remove(aName);
   }
   catch (const exception& e) {
     cerr << "ProcessFile std exception: " << e.what() << endl;
+    return false;
   }
   catch (...) {
     cerr << "ProcessFile unknown exception\n";
+    return false;
   }
+  return true;
 }
 
 static sig_atomic_t gStop = 0;
@@ -207,14 +209,10 @@ int main(int argc, char** argv)
   // compatible with the version of the headers we compiled against.
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  if (argc != 2) {
-    cerr << "usage: " << argv[0] << " <json config>\n";
+  if (argc < 2) {
+    cerr << "usage: " << argv[0] << " <json config> <space-separated batch file list or nothing for inotify>\n";
     return EXIT_FAILURE;
   }
-  signal(SIGHUP, shutdown);
-  signal(SIGINT, shutdown);
-  signal(SIGTERM, shutdown);
-  signal(SIGUSR2, shutdown);
 
   try {
     ConvertConfig config;
@@ -225,11 +223,16 @@ int main(int argc, char** argv)
                             config.mMaxUncompressed, config.mMemoryConstraint,
                             config.mCompressionPreset);
 
-    message::Message metrics;
-    metrics.set_type("telemetry");
-    metrics.set_logger("telemetry_converter");
-    metrics.set_pid(0);
-    metrics.set_hostname("todo");
+    for (int i = 2; i < argc; i++) {
+      ProcessFile(argv[i], schema, cache, writer);
+    }
+    // do not move on to inotify mode in batch mode
+    if (argc > 2) return EXIT_SUCCESS;
+
+    signal(SIGHUP, shutdown);
+    signal(SIGINT, shutdown);
+    signal(SIGTERM, shutdown);
+    signal(SIGUSR2, shutdown);
 
     int notify = inotify_init();
     if (notify < 0) {
@@ -238,6 +241,12 @@ int main(int argc, char** argv)
     }
     int watch = inotify_add_watch(notify, config.mInputDirectory.c_str(),
                                   IN_CLOSE_WRITE | IN_MOVED_TO);
+
+    message::Message metrics;
+    metrics.set_type("telemetry");
+    metrics.set_logger("telemetry_converter");
+    metrics.set_pid(0);
+    metrics.set_hostname("todo");
     int bytesRead;
     char buf[kMaxEventSize];
     ofstream ofs;
@@ -255,7 +264,7 @@ int main(int argc, char** argv)
         try {
           fs::path tfn = fs::temp_directory_path() / fn.filename();
           rename(fn, tfn);
-          ProcessFile(tfn, schema, cache, writer);
+          if (ProcessFile(tfn, schema, cache, writer)) remove(tfn);
           boost::uuids::uuid u = boost::uuids::random_generator()();
           metrics.set_uuid(&u, u.size());
           metrics.set_timestamp(0);
@@ -288,7 +297,6 @@ int main(int argc, char** argv)
   }
   // Optional:  Delete all global objects allocated by libprotobuf.
   google::protobuf::ShutdownProtobufLibrary();
-
 
   return EXIT_SUCCESS;
 }

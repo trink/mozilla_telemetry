@@ -19,16 +19,16 @@ namespace mozilla {
 namespace telemetry {
 
 ////////////////////////////////////////////////////////////////////////////////
-TelemetrySchema::TelemetryDimension::TelemetryDimension(const rapidjson::Value& aValue)
+TelemetrySchema::TelemetryDimension::TelemetryDimension(const RapidjsonValue& aValue)
 {
   namespace bx = boost::xpressive;
-  const rapidjson::Value& fn = aValue["field_name"];
+  const RapidjsonValue& fn = aValue["field_name"];
   if (!fn.IsString()) {
     throw runtime_error("missing field_name element");
   }
   mName = fn.GetString();
 
-  const rapidjson::Value& av = aValue["allowed_values"];
+  const RapidjsonValue& av = aValue["allowed_values"];
   switch (av.GetType()) {
   case rapidjson::kStringType:
     mType = kValue;
@@ -36,7 +36,7 @@ TelemetrySchema::TelemetryDimension::TelemetryDimension(const rapidjson::Value& 
     break;
   case rapidjson::kArrayType:
     mType = kSet;
-    for (rapidjson::Value::ConstValueIterator it = av.Begin(); it != av.End();
+    for (RapidjsonValue::ConstValueIterator it = av.Begin(); it != av.End();
          ++it) {
       if (!it->IsString()) {
         throw runtime_error("allowed_values must be strings");
@@ -47,11 +47,11 @@ TelemetrySchema::TelemetryDimension::TelemetryDimension(const rapidjson::Value& 
   case rapidjson::kObjectType:
     {
       mType = kRange;
-      const rapidjson::Value& mn = av["min"];
+      const RapidjsonValue& mn = av["min"];
       if (!mn.IsNumber()) {
         throw runtime_error("allowed_values range is missing min element");
       }
-      const rapidjson::Value& mx = av["max"];
+      const RapidjsonValue& mx = av["max"];
       if (!mx.IsNumber()) {
         throw runtime_error("allowed_values range is missing max element");
       }
@@ -76,14 +76,14 @@ TelemetrySchema::TelemetrySchema(const boost::filesystem::path& fileName)
   }
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
 
-  rapidjson::Document doc;
+  RapidjsonDocument doc;
   if (doc.Parse<0>(json.c_str()).HasParseError()) {
     stringstream ss;
     ss << "json parse failed: " << doc.GetParseError();
     throw runtime_error(ss.str());
   }
 
-  const rapidjson::Value& version = doc["version"];
+  const RapidjsonValue& version = doc["version"];
   if (!version.IsInt()) {
     throw runtime_error("version element is missing");
   }
@@ -93,9 +93,9 @@ TelemetrySchema::TelemetrySchema(const boost::filesystem::path& fileName)
 
 ////////////////////////////////////////////////////////////////////////////////
 boost::filesystem::path
-TelemetrySchema::GetDimensionPath(const rapidjson::Document& aDoc) const
+TelemetrySchema::GetDimensionPath(const RapidjsonDocument& aDoc) const
 {
-  const rapidjson::Value& info = aDoc["info"];
+  const RapidjsonValue& info = aDoc["info"];
   if (!info.IsObject()) {
     throw runtime_error("info element must be an object");
   }
@@ -103,7 +103,7 @@ TelemetrySchema::GetDimensionPath(const rapidjson::Document& aDoc) const
   boost::filesystem::path p;
   auto end = mDimensions.end();
   for (auto it = mDimensions.begin(); it != end; ++it){
-    const rapidjson::Value& v = info[(*it)->mName.c_str()];
+    const RapidjsonValue& v = info[(*it)->mName.c_str()];
     if (v.IsString()) {
       string dim = v.GetString();
       switch ((*it)->mType) {
@@ -145,13 +145,13 @@ TelemetrySchema::GetDimensionPath(const rapidjson::Document& aDoc) const
 /// Private Member Functions
 ////////////////////////////////////////////////////////////////////////////////
 void
-TelemetrySchema::LoadDimensions(const rapidjson::Document& aDoc)
+TelemetrySchema::LoadDimensions(const RapidjsonDocument& aDoc)
 {
-  const rapidjson::Value& dimensions = aDoc["dimensions"];
+  const RapidjsonValue& dimensions = aDoc["dimensions"];
   if (!dimensions.IsArray()) {
     throw runtime_error("dimensions element must be an array");
   }
-  for (rapidjson::Value::ConstValueIterator it = dimensions.Begin();
+  for (RapidjsonValue::ConstValueIterator it = dimensions.Begin();
        it != dimensions.End(); ++it) {
     if (!it->IsObject()) {
       throw runtime_error("dimension elemenst must be objects");

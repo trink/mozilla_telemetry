@@ -19,34 +19,34 @@ namespace mozilla {
 namespace telemetry {
 
 bool RewriteValues(shared_ptr<HistogramDefinition> aDef,
-                   const rapidjson::Value& aData,
+                   const RapidjsonValue& aData,
                    vector<int>& aRewrite);
 
-bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue);
+bool RewriteHistogram(shared_ptr<Histogram>& aHist, RapidjsonValue& aValue);
 
 
 ////////////////////////////////////////////////////////////////////////////////
-bool ConvertHistogramData(HistogramCache& aCache, rapidjson::Document& aDoc)
+bool ConvertHistogramData(HistogramCache& aCache, RapidjsonDocument& aDoc)
 {
-  const rapidjson::Value& info = aDoc["info"];
+  const RapidjsonValue& info = aDoc["info"];
   if (!info.IsObject()) {
     //cerr << "ConvertHistogramData - missing info object\n";
     return false;
   }
 
-  const rapidjson::Value& revision = info["revision"];
+  const RapidjsonValue& revision = info["revision"];
   if (!revision.IsString()) {
     //cerr << "ConvertHistogramData - missing info.revision\n";
     return false;
   }
 
-  rapidjson::Value& histograms = aDoc["histograms"];
+  RapidjsonValue& histograms = aDoc["histograms"];
   if (!histograms.IsObject()) {
     //cerr << "ConvertHistogramData - missing hintograms object\n";
     return false;
   }
 
-  rapidjson::Value& ver = aDoc["ver"];
+  RapidjsonValue& ver = aDoc["ver"];
   if (!ver.IsInt() || ver.GetInt() != 1) {
     //cerr << "ConvertHistogramData - missing ver\n";
     return false;
@@ -83,15 +83,15 @@ bool ConvertHistogramData(HistogramCache& aCache, rapidjson::Document& aDoc)
 
 ////////////////////////////////////////////////////////////////////////////////
 bool RewriteValues(const HistogramDefinition* aDef,
-                   const rapidjson::Value& aData,
+                   const RapidjsonValue& aData,
                    std::vector<int>& aRewrite)
 {
-  const rapidjson::Value& values = aData["values"];
+  const RapidjsonValue& values = aData["values"];
   if (!values.IsObject()) {
     cerr << "RewriteValues - value object not found\n";
     return false;
   }
-  for (rapidjson::Value::ConstMemberIterator it = values.MemberBegin();
+  for (RapidjsonValue::ConstMemberIterator it = values.MemberBegin();
        it != values.MemberEnd(); ++it) {
     if (!it->value.IsInt()) {
       cerr << "RewriteValues - invalid value object\n";
@@ -110,14 +110,14 @@ bool RewriteValues(const HistogramDefinition* aDef,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
+bool RewriteHistogram(shared_ptr<Histogram>& aHist, RapidjsonValue& aValue)
 {
-  rapidjson::Document doc;
-  rapidjson::Document::AllocatorType& alloc = doc.GetAllocator();
+  RapidjsonDocument doc;
+  RapidjsonDocument::AllocatorType& alloc = doc.GetAllocator();
   vector<double> summary(kExtraBucketsSize);
   bool result = true;
 
-  for (rapidjson::Value::MemberIterator it = aValue.MemberBegin(); result &&
+  for (RapidjsonValue::MemberIterator it = aValue.MemberBegin(); result &&
        it != aValue.MemberEnd(); ++it) {
     if (it->value.IsObject()) {
       const char* name = reinterpret_cast<const char*>(it->name.GetString());
@@ -139,7 +139,7 @@ bool RewriteHistogram(shared_ptr<Histogram>& aHist, rapidjson::Value& aValue)
         if (result) {
           // save off the summary values before rewriting the histogram data
           for (int x = 0; kExtraBuckets[x] != nullptr; ++x) {
-            const rapidjson::Value& v = it->value[kExtraBuckets[x]];
+            const RapidjsonValue& v = it->value[kExtraBuckets[x]];
             if (v.IsNumber()) {
               summary[x] = v.GetDouble();
             } else {
