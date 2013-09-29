@@ -14,6 +14,7 @@ structure.
 #define mozilla_telemetry_Telemetry_Schema_h
 
 #include "Common.h"
+#include "Metric.h"
 
 #include <boost/filesystem.hpp>
 #include <memory>
@@ -44,9 +45,27 @@ public:
    * 
    * @return boost::filesystem::path 
    */
-  boost::filesystem::path GetDimensionPath(const RapidjsonDocument& aDoc) const;
+  boost::filesystem::path GetDimensionPath(const RapidjsonDocument& aDoc);
+
+  /**
+   * Rolls up the internal metric data into the fields element of the provided 
+   * message. The metrics are reset after each call. 
+   * 
+   * @param aMsg The message fields element will be cleared and then populated 
+   *             with the TelemetrySchema metrics.
+   */
+  void GetMetrics(message::Message& aMsg);
 
 private:
+
+  struct Metrics {
+      Metrics() :
+        mInvalidStringDimension("Invalid String Dimension"),
+        mInvalidNumericDimension("Invalid Numeric Dimension") { }
+
+    Metric mInvalidStringDimension;
+    Metric mInvalidNumericDimension;
+  };
 
   struct TelemetryDimension
   {
@@ -78,6 +97,8 @@ private:
 
   int mVersion;
   std::vector<std::shared_ptr<TelemetryDimension>> mDimensions;
+
+  Metrics mMetrics;
 };
 
 }

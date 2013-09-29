@@ -93,7 +93,7 @@ TelemetrySchema::TelemetrySchema(const boost::filesystem::path& fileName)
 
 ////////////////////////////////////////////////////////////////////////////////
 boost::filesystem::path
-TelemetrySchema::GetDimensionPath(const RapidjsonDocument& aDoc) const
+TelemetrySchema::GetDimensionPath(const RapidjsonDocument& aDoc)
 {
   const RapidjsonValue& info = aDoc["info"];
   if (!info.IsObject()) {
@@ -122,7 +122,8 @@ TelemetrySchema::GetDimensionPath(const RapidjsonDocument& aDoc) const
         }
         break;
       default:
-        // todo log error - range comparison not allowed on a string
+        // range comparison not allowed on a string
+        ++mMetrics.mInvalidStringDimension.mValue;
         break;
       }
     } else if (v.IsNumber()) {
@@ -134,12 +135,26 @@ TelemetrySchema::GetDimensionPath(const RapidjsonDocument& aDoc) const
           p /= kOther;
         }
       } else {
-        // todo log error - numbers can only use a range comparison
+        // string comparison not allowed on numbers
+        ++mMetrics.mInvalidNumericDimension.mValue;
       }
     }
   }
   return p;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+void
+TelemetrySchema::GetMetrics(message::Message& aMsg)
+{
+  aMsg.clear_fields();
+  ConstructField(aMsg, mMetrics.mInvalidStringDimension);
+  ConstructField(aMsg, mMetrics.mInvalidNumericDimension);
+
+  mMetrics.mInvalidStringDimension.mValue = 0;
+  mMetrics.mInvalidNumericDimension.mValue = 0;
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Private Member Functions
