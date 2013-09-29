@@ -2,9 +2,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-add_executable(TestHistogram TestHistogram.cpp)
-target_link_libraries(TestHistogram telemetry ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
-ADD_TEST(TestHistogram TestHistogram)
+add_executable(TestHistogramSpecification TestHistogramSpecification.cpp)
+target_link_libraries(TestHistogramSpecification telemetry ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})
+ADD_TEST(TestHistogramSpecification TestHistogramSpecification)
 
 add_executable(TestHistogramCache TestHistogramCache.cpp)
 target_link_libraries(TestHistogramCache telemetry ${Boost_UNIT_TEST_FRAMEWORK_LIBRARY})

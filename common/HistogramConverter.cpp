@@ -22,7 +22,7 @@ bool RewriteValues(shared_ptr<HistogramDefinition> aDef,
                    const RapidjsonValue& aData,
                    vector<int>& aRewrite);
 
-bool RewriteHistogram(shared_ptr<Histogram>& aHist, RapidjsonValue& aValue);
+bool RewriteHistogram(shared_ptr<HistogramSpecification>& aHist, RapidjsonValue& aValue);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ bool ConvertHistogramData(HistogramCache& aCache, RapidjsonDocument& aDoc)
   switch (ver.GetInt()) {
   case 1:
     {
-      shared_ptr<Histogram> hist = aCache.FindHistogram(revision.GetString());
+      shared_ptr<HistogramSpecification> hist = aCache.FindHistogram(revision.GetString());
       if (hist) {
         result = RewriteHistogram(hist, histograms);
         if (result) {
@@ -110,7 +110,7 @@ bool RewriteValues(const HistogramDefinition* aDef,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool RewriteHistogram(shared_ptr<Histogram>& aHist, RapidjsonValue& aValue)
+bool RewriteHistogram(shared_ptr<HistogramSpecification>& aHist, RapidjsonValue& aValue)
 {
   RapidjsonDocument doc;
   RapidjsonDocument::AllocatorType& alloc = doc.GetAllocator();
