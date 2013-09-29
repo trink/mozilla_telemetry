@@ -24,6 +24,7 @@ extern const size_t kMaxTelemetryPath;
 extern const size_t kMaxTelemetryData;
 
 extern const char kRecordSeparator;
+extern const char kUnitSeparator;
 
 extern const size_t kExtraBucketsSize;
 extern const char* kExtraBuckets[];

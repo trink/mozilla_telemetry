@@ -9,11 +9,18 @@ HistogramCache.cpp
 HistogramConverter.cpp 
 TelemetryRecord.cpp 
 TelemetrySchema.cpp
-RecordWriter.cpp)
+RecordWriter.cpp
+Metric.cpp
+message.pb.cc)
 
 add_library(telemetry STATIC ${TELEMETRY_SRC})
 add_dependencies(telemetry rapidjson-0_11)
-target_link_libraries(telemetry ${Boost_LIBRARIES} ${ZLIB_LIBRARIES} ${OPENSSL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(telemetry 
+${Boost_LIBRARIES} 
+${PROTOBUF_LIBRARIES} 
+${ZLIB_LIBRARIES} 
+${OPENSSL_LIBRARIES} 
+${CMAKE_THREAD_LIBS_INIT})
 
 configure_file(TelemetryConstants.in.cpp ${CMAKE_CURRENT_BINARY_DIR}/TelemetryConstants.cpp)
 

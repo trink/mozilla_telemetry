@@ -5,6 +5,7 @@ Prerequisites {#mainpage}
 * Boost (1.51.0) - http://www.boost.org/users/download/
 * zlib
 * OpenSSL
+* Protobuf
 
 Optional (used for documentation)
 ----
@@ -78,5 +79,5 @@ With the histogram server running:
 
 Ubuntu Notes
 ====
-apt-get install cmake zlib1g zlib1g-dev libboost-system1.53-dev libboost-system1.53-dev libboost-system1.53-dev 
+apt-get install cmake libprotoc-dev zlib1g-dev libboost-system1.53-dev libboost-system1.53-dev libboost-system1.53-dev 
                libboost-filesystem1.53-dev libboost-thread1.53-dev libboost-test1.53-dev
