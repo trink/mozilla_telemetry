@@ -10,16 +10,16 @@ if (NOT PATCH_EXECUTABLE)
 endif()
 
 externalproject_add(
-    rapidjson
-    SVN_REPOSITORY http://rapidjson.googlecode.com/svn/trunk/
-    PATCH_COMMAND ${PATCH_EXECUTABLE} -p1 < ${CMAKE_CURRENT_LIST_DIR}/rapidjson.patch
-    BUILD_COMMAND ""
+    rapidjson-0_11
+    URL http://rapidjson.googlecode.com/files/rapidjson-0.11.zip
+    URL_MD5 96a4b1b57ece8bc6a807ceb14ccaaf94
+    PATCH_COMMAND ${PATCH_EXECUTABLE} -p1 < ${CMAKE_CURRENT_LIST_DIR}/rapidjson-0_11.patch
     CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
     INSTALL_COMMAND ""
-    UPDATE_COMMAND "" # comment out to enable updates
 )
 
-set(RAPIDJSON_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/ep_base/Source/rapidjson/include")
+set(RAPIDJSON_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/ep_base/Source/rapidjson-0_11/include")
 include_directories(${RAPIDJSON_INCLUDE_DIRS})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${RAPIDJSON_INCLUDE_DIRS}")
 
