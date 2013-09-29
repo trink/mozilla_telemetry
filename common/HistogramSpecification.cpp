@@ -4,9 +4,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/// @brief Histogram implementation @file
+/// @brief Histogram specification implementation @file
 
-#include "Histogram.h"
+#include "HistogramSpecification.h"
 
 #include <boost/functional/hash.hpp>
 #include <boost/lexical_cast.hpp>
@@ -77,7 +77,7 @@ HistogramDefinition::GetBucketIndex(long aLowerBound) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-Histogram::Histogram(const std::string& aJSON)
+HistogramSpecification::HistogramSpecification(const std::string& aJSON)
 {
   RapidjsonDocument doc;
   if (doc.Parse<0>(aJSON.c_str()).HasParseError()) {
@@ -89,7 +89,7 @@ Histogram::Histogram(const std::string& aJSON)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-Histogram::~Histogram()
+HistogramSpecification::~HistogramSpecification()
 {
   auto end = mDefinitions.end();
   for (auto it = mDefinitions.begin(); it != end; ){
@@ -103,7 +103,7 @@ Histogram::~Histogram()
 
 ////////////////////////////////////////////////////////////////////////////////
 const HistogramDefinition*
-Histogram::GetDefinition(const char* aName) const
+HistogramSpecification::GetDefinition(const char* aName) const
 {
   auto it = mDefinitions.find(const_cast<char*>(aName));
   if (it != mDefinitions.end()) {
@@ -116,7 +116,7 @@ Histogram::GetDefinition(const char* aName) const
 /// Private Member Functions
 ////////////////////////////////////////////////////////////////////////////////
 void
-Histogram::LoadDefinitions(const RapidjsonDocument& aDoc)
+HistogramSpecification::LoadDefinitions(const RapidjsonDocument& aDoc)
 {
   const RapidjsonValue& histograms = aDoc["histograms"];
   if (!histograms.IsObject()) {

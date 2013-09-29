@@ -12,7 +12,7 @@ and loads the histogram file from disk and adds it to the cache.
 #ifndef mozilla_telemetry_Histogram_Cache_h
 #define mozilla_telemetry_Histogram_Cache_h
 
-#include "Histogram.h"
+#include "HistogramSpecification.h"
 
 #include <boost/filesystem.hpp>
 #include <map>
@@ -37,7 +37,7 @@ public:
    * 
    * @return const Histogram* nullptr if load fails
    */
-  std::shared_ptr<Histogram> FindHistogram(const std::string &aRevisionKey);
+  std::shared_ptr<HistogramSpecification> FindHistogram(const std::string &aRevisionKey);
 
 private:
   /**
@@ -47,16 +47,16 @@ private:
    * 
    * @return const Histogram* nullptr if load fails
    */
-  std::shared_ptr<Histogram> LoadHistogram(const std::string &aRevisionKey);
+  std::shared_ptr<HistogramSpecification> LoadHistogram(const std::string &aRevisionKey);
 
   std::string mHistogramServer;
   std::string mHistogramServerPort;
 
   /// Cache of histogram schema keyed by MD5
-  std::unordered_map<std::string, std::shared_ptr<Histogram>> mCache;
+  std::unordered_map<std::string, std::shared_ptr<HistogramSpecification>> mCache;
 
   /// Cache of histogram schema keyed by revision
-  std::map<std::string, std::shared_ptr<Histogram>> mRevisions;
+  std::map<std::string, std::shared_ptr<HistogramSpecification>> mRevisions;
 };
 
 }

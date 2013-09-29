@@ -4,10 +4,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#define BOOST_TEST_MODULE TestHistogram
+#define BOOST_TEST_MODULE TestHistogramSpecification
 #include <boost/test/unit_test.hpp>
 #include "TestConfig.h"
-#include "../Histogram.h"
+#include "../HistogramSpecification.h"
 
 #include <fstream>
 
@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE(test_load)
   ifstream ifs(fn.c_str());
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(json);
+    HistogramSpecification h(json);
     const HistogramDefinition* hd = h.GetDefinition("CYCLE_COLLECTOR");
     BOOST_REQUIRE(hd);
     int bc = hd->GetBucketCount();
@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(test_invalid_file)
   ifstream ifs(fn.c_str());
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(json); 
+    HistogramSpecification h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {
@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(test_invalid_schema)
   ifstream ifs(fn.c_str());
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(json); 
+    HistogramSpecification h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {
@@ -72,7 +72,7 @@ BOOST_AUTO_TEST_CASE(test_missing_kind)
   ifstream ifs(fn.c_str());
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(json); 
+    HistogramSpecification h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {
@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(test_invalid_kind)
   ifstream ifs(fn.c_str());
   string json((istream_iterator<char>(ifs)), istream_iterator<char>());
   try {
-    Histogram h(json); 
+    HistogramSpecification h(json); 
     BOOST_FAIL("exception expected");
   }
   catch (const exception& e) {
