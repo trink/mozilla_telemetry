@@ -131,7 +131,7 @@ bool ProcessFile(const boost::filesystem::path& aName,
       if (ConvertHistogramData(aCache, tr.GetDocument())) {
         tr.GetDocument().Accept(writer);
         boost::filesystem::path p = aSchema.GetDimensionPath(tr.GetDocument());
-        aWriter.Write(p, sb.GetString(), sb.GetSize());
+        aWriter.Write(p, sb.GetString(), sb.Size());
       } else {
         // cerr << "Conversion failed: " << tr.GetPath() << endl;
         ++failures;
@@ -142,7 +142,7 @@ bool ProcessFile(const boost::filesystem::path& aName,
     chrono::duration<double> elapsed = end - start;
     cout << "done processing file:" << aName.filename() << " success:" << cnt
          << " failures:" << failures << " time:" << elapsed.count() <<  "; out: "
-         << sb.GetSize() / elapsed.count() / 1024 / 1024 << "MB/s" << endl;
+         << sb.Size() / elapsed.count() / 1024 / 1024 << "MB/s" << endl;
   }
   catch (const exception& e) {
     cerr << "ProcessFile std exception: " << e.what() << endl;
