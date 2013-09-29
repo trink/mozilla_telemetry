@@ -4,7 +4,7 @@
 
 set(TELEMETRY_SRC
 TelemetryConstants.cpp 
-Histogram.cpp 
+HistogramSpecification.cpp 
 HistogramCache.cpp
 HistogramConverter.cpp 
 TelemetryRecord.cpp 
