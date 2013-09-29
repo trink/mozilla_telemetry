@@ -10,6 +10,7 @@
 #define mozilla_telemetry_Telemetry_Record_h
 
 #include "Common.h"
+#include "Metric.h"
 #include "TelemetryConstants.h"
 
 #include <boost/utility.hpp>
@@ -38,7 +39,31 @@ public:
   uint64_t GetTimestamp();
   RapidjsonDocument& GetDocument();
 
+  /**
+   * Rolls up the internal metric data into the fields element of the provided 
+   * message. The metrics are reset after each call. 
+   * 
+   * @param aMsg The message fields element will be cleared and then populated 
+   *             with the TelemetryRecord metrics.
+   */
+  void GetMetrics(message::Message& aMsg);
+
 private:
+  struct Metrics {
+    Metrics() :
+      mInvalidPathLength("Invalid Path Length"),
+      mInvalidDataLength("Invalid Data Length"),
+      mInflateFailures("Inflate Failures"),
+      mParseFailures("Parse Failures"),
+      mCorruptData("Corrupt Data", "B")  { }
+
+    Metric mInvalidPathLength;
+    Metric mInvalidDataLength;
+    Metric mInflateFailures;
+    Metric mParseFailures;
+    Metric mCorruptData;
+  };
+
   bool FindRecord(std::istream& aInput);
   bool ReadHeader(std::istream& aInput);
   bool ProcessRecord();
@@ -59,6 +84,8 @@ private:
   uint32_t  mInflateLength;
   size_t    mInflateSize;
   char*     mInflate;
+
+  Metrics   mMetrics;
 
 };
 

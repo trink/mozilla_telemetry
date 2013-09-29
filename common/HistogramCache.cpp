@@ -70,6 +70,13 @@ HistogramCache::GetMetrics(message::Message& aMsg)
   ConstructField(aMsg, mMetrics.mInvalidRevisions);
   ConstructField(aMsg, mMetrics.mCacheHits);
   ConstructField(aMsg, mMetrics.mCacheMisses);
+
+  mMetrics.mConnectionErrors.mValue = 0;
+  mMetrics.mHTTPErrors.mValue = 0;
+  mMetrics.mInvalidHistograms.mValue = 0;
+  mMetrics.mInvalidRevisions.mValue = 0;
+  mMetrics.mCacheHits.mValue = 0;
+  mMetrics.mCacheMisses.mValue = 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

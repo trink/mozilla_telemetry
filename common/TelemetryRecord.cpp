@@ -89,6 +89,24 @@ RapidjsonDocument& TelemetryRecord::GetDocument()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+void
+TelemetryRecord::GetMetrics(message::Message& aMsg)
+{
+  aMsg.clear_fields();
+  ConstructField(aMsg, mMetrics.mInvalidPathLength);
+  ConstructField(aMsg, mMetrics.mInvalidDataLength);
+  ConstructField(aMsg, mMetrics.mInflateFailures);
+  ConstructField(aMsg, mMetrics.mParseFailures);
+  ConstructField(aMsg, mMetrics.mCorruptData);
+
+  mMetrics.mInvalidPathLength.mValue = 0;
+  mMetrics.mInvalidDataLength.mValue = 0;
+  mMetrics.mInflateFailures.mValue = 0;
+  mMetrics.mParseFailures.mValue = 0;
+  mMetrics.mCorruptData.mValue = 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Private Members
 ////////////////////////////////////////////////////////////////////////////////
 bool TelemetryRecord::FindRecord(std::istream& aInput)
@@ -105,6 +123,8 @@ bool TelemetryRecord::FindRecord(std::istream& aInput)
         return false;
       }
       aInput.seekg(pos); // reset back to where the bad header starts
+    } else {
+      ++mMetrics.mCorruptData.mValue;
     }
   }
   return false;
@@ -116,13 +136,13 @@ bool TelemetryRecord::ReadHeader(std::istream& aInput)
   // todo support conversion to big endian if necessary
   if (!read_value(aInput, mPathLength).good()) return false;
   if (mPathLength > kMaxTelemetryPath) {
-    // todo log error bogus path length
+    ++mMetrics.mInvalidPathLength.mValue;
     return false;
   }
 
   if (!read_value(aInput, mDataLength).good()) return false;
   if (mDataLength > kMaxTelemetryData) {
-    // todo log error bogus data length
+    ++mMetrics.mInvalidDataLength.mValue;
     return false;
   }
 
@@ -137,7 +157,7 @@ bool TelemetryRecord::ProcessRecord()
       && static_cast<unsigned char>(mData[1]) == 0x8b) {
     int ret = Inflate();
     if (ret != Z_OK) {
-      // todo log error - ungzip failed
+      ++mMetrics.mInflateFailures.mValue;
       return false;
     } else {
       if (mInflateLength < mInflateSize) {
@@ -159,7 +179,7 @@ bool TelemetryRecord::ProcessRecord()
     mDocument.ParseInsitu<0>(mData); // destructively parse
   }
   if (mDocument.HasParseError()) {
-    // todo log error - aRec.mDocument.GetParseError()
+    ++mMetrics.mParseFailures.mValue;
     return false;
   }
   return true;

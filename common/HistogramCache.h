@@ -46,8 +46,8 @@ public:
    * Rolls up the internal metric data into the fields element of the provided 
    * message. The metrics are reset after each call. 
    * 
-   * @param aMsg The fields element will be cleared and then populated with the 
-   *             HistogramCache metrics.
+   * @param aMsg The message fields element will be cleared and then populated 
+   *             with the HistogramCache metrics.
    */
   void GetMetrics(message::Message& aMsg);
 

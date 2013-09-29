@@ -27,6 +27,7 @@
 #include <rapidjson/writer.h>
 #include <sstream>
 #include <sys/inotify.h>
+#include <unistd.h>
 
 using namespace std;
 namespace fs = boost::filesystem;
@@ -45,6 +46,41 @@ struct ConvertConfig
   int         mCompressionPreset;
 };
 
+struct Metrics
+{
+  Metrics() :
+    mRecordsProcessed("Records Processed"),
+    mRecordsFailed("Records Discarded"),
+    mDataIn("Data In", "B"),
+    mDataOut("Data Out", "B"),
+    mProcessingTime("Processing Time", "s"),
+    mThroughput("Throughput", "MiB/s") { }
+
+  void GetMetrics(message::Message& aMsg)
+  {
+    aMsg.clear_fields();
+    mt::ConstructField(aMsg, mRecordsProcessed);
+    mt::ConstructField(aMsg, mRecordsFailed);
+    mt::ConstructField(aMsg, mDataIn);
+    mt::ConstructField(aMsg, mDataOut);
+    mt::ConstructField(aMsg, mProcessingTime);
+    mt::ConstructField(aMsg, mThroughput);
+
+    mRecordsProcessed.mValue = 0;
+    mRecordsFailed.mValue = 0;
+    mDataIn.mValue = 0;
+    mDataOut.mValue = 0;
+    mProcessingTime.mValue = 0;
+    mThroughput.mValue = 0;
+  }
+
+  mt::Metric mRecordsProcessed;
+  mt::Metric mRecordsFailed;
+  mt::Metric mDataIn;
+  mt::Metric mDataOut;
+  mt::Metric mProcessingTime;
+  mt::Metric mThroughput;
+} gMetrics;
 
 ///////////////////////////////////////////////////////////////////////////////
 void ReadConfig(const char* aFile, ConvertConfig& aConfig)
@@ -133,7 +169,9 @@ void ReadConfig(const char* aFile, ConvertConfig& aConfig)
 
 ///////////////////////////////////////////////////////////////////////////////
 bool ProcessFile(const boost::filesystem::path& aName,
-                 const mt::TelemetrySchema& aSchema, mt::HistogramCache& aCache,
+                 mt::TelemetrySchema& aSchema,
+                 mt::TelemetryRecord& aRecord,
+                 mt::HistogramCache& aCache,
                  mt::RecordWriter& aWriter)
 {
   try {
@@ -141,31 +179,39 @@ bool ProcessFile(const boost::filesystem::path& aName,
     chrono::time_point<chrono::system_clock> start, end;
     start = chrono::system_clock::now();
     ifstream file(aName.c_str());
-    mt::TelemetryRecord tr;
     rapidjson::StringBuffer sb;
     rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
-    int cnt = 0, failures = 0;
-    while (tr.Read(file)) {
-      if (ConvertHistogramData(aCache, tr.GetDocument())) {
-        tr.GetDocument().Accept(writer);
-        boost::filesystem::path p = aSchema.GetDimensionPath(tr.GetDocument());
+    while (aRecord.Read(file)) {
+      if (ConvertHistogramData(aCache, aRecord.GetDocument())) {
+        sb.Clear();
+        aRecord.GetDocument().Accept(writer);
+        fs::path p = aSchema.GetDimensionPath(aRecord.GetDocument());
         aWriter.Write(p, sb.GetString(), sb.Size());
+        gMetrics.mDataOut.mValue += sb.Size();
       } else {
-        // cerr << "Conversion failed: " << tr.GetPath() << endl;
-        ++failures;
+        // cerr << "Conversion failed: " << aRecord.GetPath() << endl;
+        ++gMetrics.mRecordsFailed.mValue;
       }
-      ++cnt;
+      ++gMetrics.mRecordsProcessed.mValue;
     }
     end = chrono::system_clock::now();
     chrono::duration<double> elapsed = end - start;
-    double throughput = 0;
-    double duration = elapsed.count();
-    if (duration > 0) {
-      throughput = file_size(aName) / 1024 / 1024 / duration;
+    gMetrics.mProcessingTime.mValue = elapsed.count();
+    gMetrics.mDataIn.mValue = file_size(aName);
+
+    if (gMetrics.mProcessingTime.mValue > 0) {
+      gMetrics.mThroughput.mValue = gMetrics.mDataIn.mValue / 1024 / 1024
+        / gMetrics.mProcessingTime.mValue;
     }
-    cout << "done processing file:" << aName.filename() << " success:" << cnt
-      << " failures:" << failures << " time:" << duration
-      << " throughput MiB/s:" << throughput << endl;
+    cout << "done processing file:" << aName.filename()
+      << " success:" <<  gMetrics.mRecordsProcessed.mValue
+      << " failures:" << gMetrics.mRecordsFailed.mValue
+      << " time:" << gMetrics.mProcessingTime.mValue
+      << " throughput (MiB/s):" << gMetrics.mThroughput.mValue 
+      << " data in (B):" << gMetrics.mDataIn.mValue 
+      << " data out (B):" << gMetrics.mDataOut.mValue 
+
+      << endl;
   }
   catch (const exception& e) {
     cerr << "ProcessFile std exception: " << e.what() << endl;
@@ -213,10 +259,16 @@ int main(int argc, char** argv)
     cerr << "usage: " << argv[0] << " <json config> <space-separated batch file list or nothing for inotify>\n";
     return EXIT_FAILURE;
   }
+  char hostname[HOST_NAME_MAX];
+  if (gethostname(hostname, HOST_NAME_MAX) != 0) {
+    cerr << "gethostname() failed\n";
+    return EXIT_FAILURE;
+  }
 
   try {
     ConvertConfig config;
     ReadConfig(argv[1], config);
+    mt::TelemetryRecord record;
     mt::HistogramCache cache(config.mHistogramServer);
     mt::TelemetrySchema schema(config.mTelemetrySchema);
     mt::RecordWriter writer(config.mStoragePath, config.mUploadPath,
@@ -224,7 +276,7 @@ int main(int argc, char** argv)
                             config.mCompressionPreset);
 
     for (int i = 2; i < argc; i++) {
-      ProcessFile(argv[i], schema, cache, writer);
+      ProcessFile(argv[i], schema, record, cache, writer);
     }
     // do not move on to inotify mode in batch mode
     if (argc > 2) return EXIT_SUCCESS;
@@ -242,11 +294,10 @@ int main(int argc, char** argv)
     int watch = inotify_add_watch(notify, config.mInputDirectory.c_str(),
                                   IN_CLOSE_WRITE | IN_MOVED_TO);
 
-    message::Message metrics;
-    metrics.set_type("telemetry");
-    metrics.set_logger("telemetry_converter");
-    metrics.set_pid(0);
-    metrics.set_hostname("todo");
+    message::Message msg;
+    msg.set_type("telemetry");
+    msg.set_pid(getpid());
+    msg.set_hostname(hostname);
     int bytesRead;
     char buf[kMaxEventSize];
     ofstream ofs;
@@ -264,13 +315,33 @@ int main(int argc, char** argv)
         try {
           fs::path tfn = fs::temp_directory_path() / fn.filename();
           rename(fn, tfn);
-          if (ProcessFile(tfn, schema, cache, writer)) remove(tfn);
-          boost::uuids::uuid u = boost::uuids::random_generator()();
-          metrics.set_uuid(&u, u.size());
-          metrics.set_timestamp(0);
-          cache.GetMetrics(metrics);
+          if (ProcessFile(tfn, schema, record, cache, writer)) {
+            remove(tfn);
+          }
           RollLog(ofs, config);
-          mt::WriteMessage(ofs, metrics);
+          boost::uuids::uuid u = boost::uuids::random_generator()();
+          msg.set_uuid(&u, u.size());
+          auto tp = chrono::high_resolution_clock::now();
+          chrono::nanoseconds ts = tp.time_since_epoch();
+          msg.set_timestamp(ts.count());
+          msg.set_payload(tfn.filename().c_str());
+
+          msg.set_logger("cache");
+          cache.GetMetrics(msg);
+          mt::WriteMessage(ofs, msg);
+
+          msg.set_logger("record");
+          record.GetMetrics(msg);
+          mt::WriteMessage(ofs, msg);
+
+          msg.set_logger("schema");
+          schema.GetMetrics(msg);
+          mt::WriteMessage(ofs, msg);
+
+          msg.set_logger("converter");
+          gMetrics.GetMetrics(msg);
+          mt::WriteMessage(ofs, msg);
+          ofs.flush();
         }
         catch (const exception& e) {
           cerr << "Rename failed:" << fn.filename()
