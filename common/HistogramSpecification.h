@@ -5,11 +5,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 /** @file 
-Accessor and utility functions functions for the Histogram.json data structure. 
+Accessor and utility functions for the Histogram.json data structure. 
  */
 
-#ifndef mozilla_telemetry_Histogram_h
-#define mozilla_telemetry_Histogram_h
+#ifndef mozilla_telemetry_HistogramSpecification_h
+#define mozilla_telemetry_HistogramSpecification_h
 
 #include "Common.h"
 
@@ -89,7 +89,7 @@ struct Cstring_hash : std::unary_function<char*, std::size_t>
  * Stores the set of histogram definitions within a histogram file.
  * 
  */
-class Histogram : boost::noncopyable
+class HistogramSpecification : boost::noncopyable
 {
 public:
   /**
@@ -100,8 +100,8 @@ public:
    * @return
    * 
    */
-  Histogram(const std::string& aJSON);
-  ~Histogram();
+  HistogramSpecification(const std::string& aJSON);
+  ~HistogramSpecification();
 
 
   /**
@@ -131,4 +131,4 @@ private:
 }
 }
 
-#endif // mozilla_telemetry_Histogram_h
+#endif // mozilla_telemetry_HistogramSpecification_h

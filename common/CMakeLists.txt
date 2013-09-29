@@ -4,7 +4,7 @@
 
 set(TELEMETRY_SRC
 TelemetryConstants.cpp 
-Histogram.cpp 
+HistogramSpecification.cpp 
 HistogramCache.cpp
 HistogramConverter.cpp 
 TelemetryRecord.cpp 
@@ -14,7 +14,7 @@ Metric.cpp
 message.pb.cc)
 
 add_library(telemetry STATIC ${TELEMETRY_SRC})
-add_dependencies(telemetry rapidjson)
+add_dependencies(telemetry rapidjson-0_11)
 target_link_libraries(telemetry 
 ${Boost_LIBRARIES} 
 ${PROTOBUF_LIBRARIES} 

@@ -33,10 +33,10 @@ HistogramCache::HistogramCache(const std::string& aHistogramServer)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-std::shared_ptr<Histogram>
+std::shared_ptr<HistogramSpecification>
 HistogramCache::FindHistogram(const std::string& aRevisionKey)
 {
-  shared_ptr<Histogram> h;
+  shared_ptr<HistogramSpecification> h;
 
   if (aRevisionKey.compare(0, 4, "http") != 0) {
     ++mMetrics.mInvalidRevisions.mValue;
@@ -75,7 +75,7 @@ HistogramCache::GetMetrics(message::Message& aMsg)
 ////////////////////////////////////////////////////////////////////////////////
 /// Private Member Functions
 ////////////////////////////////////////////////////////////////////////////////
-std::shared_ptr<Histogram>
+std::shared_ptr<HistogramSpecification>
 HistogramCache::LoadHistogram(const std::string& aRevisionKey)
 {
   string json;
@@ -127,7 +127,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
     std::getline(response_stream, status_message);
     if (!response_stream || http_version.substr(0, 5) != "HTTP/") {
       ++mMetrics.mHTTPErrors.mValue;
-      return shared_ptr<Histogram>();
+      return shared_ptr<HistogramSpecification>();
     }
 
     // Read the response headers, which are terminated by a blank line.
@@ -138,7 +138,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
     while (std::getline(response_stream, header) && header != "\r");
     if (status_code != 200) {
       ++mMetrics.mHTTPErrors.mValue;
-      shared_ptr<Histogram> h;
+      shared_ptr<HistogramSpecification> h;
       mRevisions.insert(make_pair(aRevisionKey, h)); // prevent retries
       return h;
     }
@@ -165,7 +165,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
       ++mMetrics.mInvalidHistograms.mValue;
       cerr << "LoadHistogram - invalid histogram specification: " 
         << aRevisionKey << endl;
-      return shared_ptr<Histogram>();
+      return shared_ptr<HistogramSpecification>();
     }
   } else {
     json = string(istream_iterator<char>(ifs), istream_iterator<char>());
@@ -182,7 +182,7 @@ HistogramCache::LoadHistogram(const std::string& aRevisionKey)
     return it->second;
   }
 
-  shared_ptr<Histogram> h(new Histogram(json));
+  shared_ptr<HistogramSpecification> h(new HistogramSpecification(json));
   mCache.insert(make_pair(key, h));
   mRevisions.insert(make_pair(aRevisionKey, h));
   return h;

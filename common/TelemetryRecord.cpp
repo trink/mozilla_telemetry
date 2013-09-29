@@ -6,7 +6,7 @@
 
 /// @brief Telemetry record implementation @file
 
-#include "Histogram.h"
+#include "HistogramSpecification.h"
 #include "TelemetryConstants.h"
 #include "TelemetryRecord.h"
 

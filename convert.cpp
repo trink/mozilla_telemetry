@@ -149,7 +149,7 @@ bool ProcessFile(const boost::filesystem::path& aName,
       if (ConvertHistogramData(aCache, tr.GetDocument())) {
         tr.GetDocument().Accept(writer);
         boost::filesystem::path p = aSchema.GetDimensionPath(tr.GetDocument());
-        aWriter.Write(p, sb.GetString(), sb.GetSize());
+        aWriter.Write(p, sb.GetString(), sb.Size());
       } else {
         // cerr << "Conversion failed: " << tr.GetPath() << endl;
         ++failures;
