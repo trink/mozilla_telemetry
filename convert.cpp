@@ -184,7 +184,13 @@ bool ProcessFile(const boost::filesystem::path& aName,
     while (aRecord.Read(file)) {
       if (ConvertHistogramData(aCache, aRecord.GetDocument())) {
         sb.Clear();
+        const char* s = aRecord.GetPath();
+        for (int x = 0; s[x] != 0 && s[x] != '/'; ++x) { // extract uuid
+          sb.Put(s[x]);
+        }
+        sb.Put('\t');
         aRecord.GetDocument().Accept(writer);
+        sb.Put('\n');
         fs::path p = aSchema.GetDimensionPath(aRecord.GetDocument());
         aWriter.Write(p, sb.GetString(), sb.Size());
         gMetrics.mDataOut.mValue += sb.Size();
@@ -207,10 +213,9 @@ bool ProcessFile(const boost::filesystem::path& aName,
       << " success:" <<  gMetrics.mRecordsProcessed.mValue
       << " failures:" << gMetrics.mRecordsFailed.mValue
       << " time:" << gMetrics.mProcessingTime.mValue
-      << " throughput (MiB/s):" << gMetrics.mThroughput.mValue 
-      << " data in (B):" << gMetrics.mDataIn.mValue 
-      << " data out (B):" << gMetrics.mDataOut.mValue 
-
+      << " throughput (MiB/s):" << gMetrics.mThroughput.mValue
+      << " data in (B):" << gMetrics.mDataIn.mValue
+      << " data out (B):" << gMetrics.mDataOut.mValue
       << endl;
   }
   catch (const exception& e) {
