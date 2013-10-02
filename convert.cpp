@@ -286,10 +286,14 @@ int main(int argc, char** argv)
     // do not move on to inotify mode in batch mode
     if (argc > 2) return EXIT_SUCCESS;
 
-    signal(SIGHUP, shutdown);
-    signal(SIGINT, shutdown);
-    signal(SIGTERM, shutdown);
-    signal(SIGUSR2, shutdown);
+    struct sigaction act;
+    act.sa_handler = shutdown;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = 0;
+    sigaction(SIGHUP, &act, nullptr);
+    sigaction(SIGINT, &act, nullptr);
+    sigaction(SIGTERM, &act, nullptr);
+    sigaction(SIGUSR2, &act, nullptr);
 
     int notify = inotify_init();
     if (notify < 0) {
